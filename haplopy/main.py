@@ -40,13 +40,13 @@ def simulate(haplotypes, nobs=100):
     return pd.Series(phenotypes)
 
 
-def expand(phenotypes):
+def expand(unique_phenotypes):
     """Find possible haplotypes and genotypes
 
     The genotype information is returned as a look-up to the haplotypes list.
 
-    :param phenotypes: List of observed phenotypes of same length
-    :type phenotypes: list
+    :param unique_phenotypes: List of **unique** phenotypes of same length
+    :type unique_phenotypes: list
     :return: (haplotypes, genotypes)
     :rtype: tuple
 
@@ -55,14 +55,17 @@ def expand(phenotypes):
     """
     # retrieve all possible constituent haplotypes
     haplotypes = set()
-    for phenotype in phenotypes:
+    for phenotype in unique_phenotypes:
         haplotypes = haplotypes.union(
             set(itertools.product(*[set(loc) for loc in phenotype]))
         )
     haplotypes = list(haplotypes)
     # lookup from haplotypes to genotype pairs
     genotypes = list()
-    for phenotype in phenotypes:
+    for phenotype in unique_phenotypes:
+        # the below call returns a list of haplotypes
+        # aligning the top and (flipped) bottom halves gives directly
+        # the admissible genotype combinations
         factors = list(itertools.product(*[set(loc) for loc in phenotype]))
         mid = len(factors) // 2
         if mid == 0:
