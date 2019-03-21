@@ -1,10 +1,19 @@
 import itertools
+import logging
+
 import numpy as np
 import pandas as pd
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 __version__ = '0.0.1.dev'
 __author__ = 'Stratos Staboulis'
+
+
+# TODO: Strings to numbers
 
 
 def update_configuration(defaults, custom_settings):
@@ -74,26 +83,120 @@ def remove_duplicates(l):
     return checked
 
 
-def simulate_genotype_data(num_data, haplotype_dict):
+def simulate(haplotypes, nobs=100):
     """Simulate unphased genotype data
 
-    :param num_data: Number of output genotype samples
-    :param haplotype_dict: Dictionary containing population haplotypes and
-    their relative frequencies.
-    :return: List of drawn unphased genotypes. List length is num_data.
+    :param haplotypes: Population haplotypes and their relative frequencies.
+    :type haplotypes: pandas.Series
+    :param nobs: Number of observations to be generated
+    :type nobs: int
+    :return: List of unphased genotypes
 
     """
-    haplotype_list = list(haplotype_dict.keys())
-    p = np.array(list(haplotype_dict.values()))
-    p /= np.sum(p)  # normalize
-    gt = []
-    for n in range(0, num_data):
-        samp = list(np.random.multinomial(1, p))
-        h1 = [haplotype_list[i] for i, v in enumerate(samp) if v == 1][0]
-        samp = list(np.random.multinomial(1, p))
-        h2 = [haplotype_list[i] for i, v in enumerate(samp) if v == 1][0]
-        gt.append([a1 + a2 for a1, a2 in zip(h1, h2)])
-    return gt
+    haplotypes /= haplotypes.sum()  # must sum up to 1
+    samples = np.random.multinomial(1, haplotypes, 2 * nobs)
+    inds = np.dot(samples, np.arange(haplotypes.size))  # random set of indices
+    phenotypes = []
+    for i, j in inds.reshape(nobs, 2):
+        phenotypes.append(
+            tuple('{}{}'.format(*sorted(x))
+                  for x in zip(haplotypes.index[i], haplotypes.index[j]))
+        )
+    return pd.Series(phenotypes)
+
+
+def expand(phenotypes):
+    """Find possible haplotypes and genotypes
+
+    The genotype information is returned as a look-up to the haplotypes list.
+
+    :param phenotypes: List of observed phenotypes of same length
+    :type phenotypes: list
+    :return: (haplotypes, genotypes)
+    :rtype: tuple
+
+    """
+    # retrieve all possible constituent haplotypes
+    haplotypes = set()
+    for phenotype in phenotypes:
+        haplotypes = haplotypes.union(
+            set(itertools.product(*[set(loc) for loc in phenotype]))
+        )
+    haplotypes = list(haplotypes)
+    # lookup from haplotypes to genotype pairs
+    genotypes = list()
+    for phenotype in phenotypes:
+        factors = list(itertools.product(*[set(loc) for loc in phenotype]))
+        mid = len(factors) // 2
+        if mid == 0:
+            genotypes.append(
+                [(haplotypes.index(factors[0]), haplotypes.index(factors[0]))]
+            )
+        else:
+            genotypes.append(
+                [(haplotypes.index(x), haplotypes.index(y))
+                 for x, y in zip(factors[:mid], factors[mid:][::-1])]
+            )
+    return haplotypes, genotypes
+
+
+def expectation(proba_haplotypes, genotypes):
+    """Expectation step of the EM algorithm
+
+    TODO: Math formula here
+
+    :param proba_haplotypes: Haplotype frequency estimates
+    :param genotypes: Representation as haplotype indices
+    :return:
+
+    """
+    proba_genotypes = list()
+    for genotype in genotypes:
+        proba_genotypes.append(
+            [2 ** (i == j) * proba_haplotypes[i] * proba_haplotypes[j]
+             for (i, j) in genotype]
+        )
+    return proba_genotypes
+
+
+def expand_genotypes(unphased):
+    """Find possible parent haplotypes
+
+    **Todo**
+    - Can I do this one by one?
+
+    """
+    ht_all = []
+    ht_gt = []
+    for pair in unphased.values:
+        _ht = []
+        import pdb; pdb.set_trace()
+        expand_pair = list(itertools.product(*pair))
+        for i in range(0, len(expand_pair) // 2):
+            row_top = ''.join(expand_pair[i])
+            row_bot = ''.join(expand_pair[-i - 1])
+            ht_all.append(row_top)
+            ht_all.append(row_bot)
+            _ht.append([row_top, row_bot])
+        _ht = remove_duplicates(_ht)
+        ht_gt.append(_ht)
+    ht_all = list(set(ht_all))
+    return ht_gt, ht_all
+
+
+def get_indicator(ht_gt, ht_all):
+    num_data = len(ht_gt)
+    num_loc = len(ht_gt[0][0])
+    indicator_dict = dict.fromkeys(ht_all)
+    for h in ht_all:
+        indicator = np.zeros((num_data, 2 ** (num_loc - 1)))
+        for i, ht in enumerate(ht_gt):
+            row = np.zeros(2 ** (num_loc - 1))
+            for j, h_pair in enumerate(ht):
+                row[j] = h_pair.count(h)
+            indicator[i, :] = row
+        indicator_dict[h] = indicator
+    return indicator_dict
 
 
 def reconstruct_parent_haplotype(gt):
@@ -168,7 +271,7 @@ def expectation_haplotype_probability(p_dict, ht):
     return np.array(p_e)
 
 
-def build_maximization_matrix(p_dict, gt, ht_gt):
+def build_maximization_matrix(p_dict, unphased, ht_gt):
     """Matrix of genotype probabilities for the maximization step
 
     :param p_dict: Dictionary of relative haplotype frequencies. Keys are
@@ -179,15 +282,15 @@ def build_maximization_matrix(p_dict, gt, ht_gt):
     :return: Matrix as a Numpy array.
 
     """
-    num_loc = len(gt[0])
-    num_data = len(gt)
-    p_mat = np.zeros((num_data, 2 ** (num_loc - 1)))
+    nloci = unphased.shape[1]
+    nobs = unphased.shape[0]
+    p_mat = np.zeros((nobs, 2 ** (nloci - 1)))
     log_likelihood = 0.0
     for i, ht in enumerate(ht_gt):
         p_e = expectation_haplotype_probability(p_dict, ht)
         p_e_total = np.sum(p_e)
         log_likelihood -= np.log(p_e_total)
-        p_m = p_e / p_e_total / num_data
+        p_m = p_e / p_e_total / nobs
         p_mat[i, :len(p_m)] = p_m
     return p_mat, log_likelihood
 
