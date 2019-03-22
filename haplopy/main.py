@@ -14,18 +14,23 @@ __version__ = '0.0.1.dev'
 __author__ = 'Stratos Staboulis'
 
 
-# TODO Strings to numbers
-# TODO Independence of Pandas
+# TODO Logging info
+# TODO Log-likelihood conditiion in iteration
+# TODO Randomized initial guess in iteration
+# TODO Imputation example
+# TODO Unit-tests
+# TODO Documentation
 
 
 class PhenotypeData(object):
     """Container for phenotype data
 
-    All integer index-like values refer to the natural index of
-    :attr:`PhenotypeData.haplotypes`.
+    Pre-determines useful attributes for applying the EM-algorithm for
+    haplotype frequency reconstruction based on unphased genotype (phenotype)
+    data.
 
     """
-    def __init__(self, sample=None, **kwargs):
+    def __init__(self, sample=None):
         self.sample = sample
         self._haplotypes = None
         self._analysis = None
@@ -49,13 +54,12 @@ class PhenotypeData(object):
             )
         return cls(sample=sample)
 
-    @classmethod
-    def read_csv(cls, **kwargs):
-        raise NotImplementedError
-
     @property
     def haplotypes(self):
-        """The haplotypes present in the sample
+        """All haplotypes compatible with :attr:`sample`
+
+        :return: Sequence of haplotypes in unspecified order.
+        :rtype: list
 
         """
         if self._haplotypes is None:
@@ -72,11 +76,15 @@ class PhenotypeData(object):
     def analysis(self):
         """Analysis of the phenotype sample
 
+        :return: Useful information deduced from the phenotype data in
+                 :attr:`sample`.
+        :rtype: dict
+
         """
         if self._analysis is None:
             counter = collections.Counter(self.sample)
             unique_phenotypes = list(counter.keys())
-            genotypes = list()
+            genotype_expansion = list()
             for phenotype in unique_phenotypes:
                 # the below call returns a list of haplotypes
                 # aligning the top and (flipped) bottom halves gives directly
@@ -85,27 +93,33 @@ class PhenotypeData(object):
                                                    for loc in phenotype]))
                 mid = len(factors) // 2
                 if mid == 0:
-                    genotypes.append(
+                    genotype_expansion.append(
                         [(self.haplotypes.index(factors[0]),
                           self.haplotypes.index(factors[0]))]
                     )
                 else:
-                    genotypes.append(
+                    genotype_expansion.append(
                         [(self.haplotypes.index(x), self.haplotypes.index(y))
                          for x, y in zip(factors[:mid], factors[mid:][::-1])]
                     )
             self._analysis = {'counts': list(counter.values()),
                               'phenotypes': unique_phenotypes,
-                              'genotypes': genotypes}
+                              'genotype_expansion': genotype_expansion}
         return self._analysis
 
     @property
     def genotypes(self):
         """List all genotypes compatible with the phenotype sample
 
+        :return: List of genotypes compatible with the phenotype data in
+                 :attr:`sample`. The genotypes are referred to in terms of the
+                 natural index of :attr:`haplotypes`
+        :rtype: list
+
         """
         if self._genotypes is None:
-            genotypes = [x for y in self.analysis['genotypes'] for x in y]
+            genotypes = [x for y in self.analysis['genotype_expansion']
+                         for x in y]
             self._genotypes = genotypes
         return self._genotypes
 
@@ -113,40 +127,73 @@ class PhenotypeData(object):
     def genotype_matrix(self):
         """Count haplotype occurrences in each compatible genotype
 
+        :return: Sparse matrix of shape (num haplotypes) x (num genotypes)
+        :rtype: scipy.sparse.dok_matrix
+
         """
         if self._genotype_matrix is None:
             genotype_matrix = dok_matrix(
-                (len(self.genotypes), len(self.haplotypes)),
+                (len(self.haplotypes), len(self.genotypes)),
                 dtype=np.int
             )
             for i, genotype in enumerate(self.genotypes):
-                genotype_matrix[i, genotype[0]] += 1
-                genotype_matrix[i, genotype[1]] += 1
+                genotype_matrix[genotype[0], i] += 1
+                genotype_matrix[genotype[1], i] += 1
             self._genotype_matrix = genotype_matrix
         return self._genotype_matrix
 
 
-def proba_em(proba_haplotypes, phenotype_data):
-    """Expectation step of the EM algorithm
+def expectation_maximization_update(phenotype_data, proba_haplotypes):
+    """Take one step of the EM algorithm
 
-    TODO: Math formula here
-
-    :param proba_haplotypes: Haplotype frequency estimates
-    :param genotypes: Representation as haplotype indices
-    :return:
-
-    TODO testme
+    :param phenotype_data: Pre-calculated data structure of the phenotype data
+    :type phenotype_data: :class:`~haplopy.PhenotypeData`
+    :param proba_haplotypes: Current estimate of the haplotype frequencies
+    :type proba_haplotypes: :class:`~numpy.array`
+    :return: Next estimate of the haplotype probabilities
+    :rtype: :class:`~numpy.array`
 
     """
-    num_phenotypes = phenotype_data['phenotype_count'].sum()
-    proba_genotypes = list()
-    for i, genotypes in enumerate(phenotype_data['genotypes']):
-        proba = [2 ** (i == j) * proba_haplotypes[i] * proba_haplotypes[j]
-                 for (i, j) in genotypes]
-        proba = np.divide(proba, sum(proba))
-        proba = np.multiply(
-            proba,
-            phenotype_data['phenotype_count'].iloc[i] / num_phenotypes
+    nobs = sum(phenotype_data.analysis['counts'])  # number of observations
+    proba_genotypes = np.array([])
+    for i, genotypes in enumerate(
+            phenotype_data.analysis['genotype_expansion']):
+        proba = np.array(
+            [2 ** (i == j) * proba_haplotypes[i] * proba_haplotypes[j]
+             for (i, j) in genotypes]
         )
-        proba_genotypes.append(proba)  # TODO fix proba_genotypes to relevant
-    return proba_genotypes
+        proba /= sum(proba)
+        proba *= phenotype_data.analysis['counts'][i] / nobs
+        proba_genotypes = np.concatenate([proba_genotypes, proba])
+    return .5 * phenotype_data.genotype_matrix.dot(proba_genotypes)
+
+
+def expectation_maximization(phenotype_data, proba_haplotypes=None,
+                             max_iter=20):
+    """EM iteration for haplotype frequency estimation
+
+    Calculates the Maximum Likelihood estimate of the haplotype frequencies.
+
+    TODO Math formula of likelihood
+
+    The source data is unphased genotype data (phenotype).
+
+    :param phenotype_data: Pre-calculated data structure of the phenotype data
+    :type phenotype_data: :class:`~haplopy.PhenotypeData`
+    :param proba_haplotypes: Initial estimate of the haplotype frequencies
+    :type proba_haplotypes: :class:`~numpy.array`
+    :param max_iter: Maximum number of iterations
+    :type max_iter: int
+    :return: Estimated haplotype frequencies
+    :rtype: :class:`~numpy.array`
+
+    """
+    if proba_haplotypes is None:  # equal frequencies as initial guess
+        nhaplotypes = len(phenotype_data.haplotypes)
+        proba_haplotypes = np.ones(nhaplotypes) / nhaplotypes
+    for i in range(max_iter):
+        proba_haplotypes = expectation_maximization_update(phenotype_data,
+                                                           proba_haplotypes)
+    res = {''.join(k): v for k, v in zip(phenotype_data.haplotypes,
+                                         proba_haplotypes)}
+    return res
