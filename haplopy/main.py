@@ -3,7 +3,6 @@ import itertools
 import logging
 
 import numpy as np
-import pandas as pd
 from scipy.sparse import dok_matrix
 
 
