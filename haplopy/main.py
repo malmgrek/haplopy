@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+
+"""
+haplopy.main
+~~~~~~~~~~~~
+
+This module implements the HaploPy
+
+:copyright: (c) 2019 by Stratos Staboulis
+:license: MIT
+"""
+
 import collections
 import itertools
 import logging
@@ -8,13 +20,6 @@ from scipy.sparse import dok_matrix
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-# ____________________________________________________________________________
-#
-# HaploPy -- Haplotype probability yanking
-# ____________________________________________________________________________
-#
 
 
 __version__ = '0.0.1.dev'
@@ -222,7 +227,8 @@ def expectation_maximization_update(phenotype_data, proba_haplotypes):
             [2 ** (i != j) * proba_haplotypes[i] * proba_haplotypes[j]
              for (i, j) in genotypes]
         )
-        log_likelihood += phenotype_data.analysis['counts'][i] * proba.sum()
+        log_likelihood += phenotype_data.analysis['counts'][i] * \
+                          np.log(proba.sum())
         proba /= sum(proba)
         proba *= phenotype_data.analysis['counts'][i] / nobs
         proba_genotypes = np.concatenate([proba_genotypes, proba])
