@@ -19,19 +19,14 @@ from scipy.sparse import dok_matrix
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 __version__ = '0.0.1.dev'
-__author__ = 'Stratos Staboulis'
 
 
-# TODO Logging info
-# TODO Log-likelihood conditiion in iteration
 # TODO Randomized initial guess in iteration
 # TODO Imputation example
 # TODO Unit-tests
-# TODO Sphinx documentation to GitHub
 
 
 def log_binomial(n, m):
@@ -82,25 +77,27 @@ class PhenotypeData(object):
         # TODO code example
 
         :param proba_haplotypes: Known haplotype frequencies
-        :type proba_haplotypes: :class:`numpu.ndarray`-like
+        :type proba_haplotypes: dict
         :param nobs: Number of generated observations
         :type nobs: int
         :return: Instance of :class:`PhenotypeData` with the simulated data
                  in :attr:`sample`
 
         """
-        proba_haplotypes /= proba_haplotypes.sum()
+        haplotypes = list(proba_haplotypes)
+        proba = np.array(list(proba_haplotypes.values()))
+        proba = proba / proba.sum()
         # random set of indices
         inds = np.dot(
-            np.random.multinomial(1, proba_haplotypes, 2 * nobs),
-            np.arange(proba_haplotypes.size)
+            np.random.multinomial(1, proba, 2 * nobs),
+            np.arange(proba.size)
         )
         sample = []
         for i, j in inds.reshape(nobs, 2):
             sample.append(
                 tuple('{}{}'.format(*sorted(x))
-                      for x in zip(proba_haplotypes.index[i],
-                                   proba_haplotypes.index[j]))
+                      for x in zip(haplotypes[i],
+                                   haplotypes[j]))
             )
         logger.info('Simulated phenotype data of {0} observations'.format(
             nobs))
@@ -277,7 +274,8 @@ def expectation_maximization(phenotype_data, proba_haplotypes=None,
         )
         objective_values.append(log_likelihood)
         logger.info(
-            'Iteration {0}: log(L) = {1}'.format(i, log_likelihood)
+            'Iteration {0} | log(L) = {1:.4e} | delta = {2:.4e}'.format(
+                i, log_likelihood, delta)
         )
         if i > 0:
             delta = objective_values[-1] - objective_values[-2]
@@ -289,11 +287,11 @@ def expectation_maximization(phenotype_data, proba_haplotypes=None,
                                          proba_haplotypes)}
     if i == max_iter:
         logger.info('EM algorithm terminated after maximum number of {0} '
-                    'iterations.'.format(i + 1))
+                    'iterations.'.format(i))
     # Additional log message for results
     msg = '\n\nResults\n' +\
               '=======\n' +\
-          ''.join(['{0}: {1}\n'.format(k, v)
+          ''.join(['{0} | {1:.6f}\n'.format(k, v)
                    for k, v in res.items() if v > logging_threshold])
     logger.debug(msg)
     return res
