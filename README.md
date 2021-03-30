@@ -23,9 +23,8 @@ import haplopy as hp
 
 
 # haplotype frequencies in simulated population
-proba_haplotypes = {'TGTC': .33, 
-                    'ACTC': .2,      
-                    'ACTC': .1, 
+proba_haplotypes = {'TGTC': .43, 
+                    'ACTC': .2,
                     'TCTC': .12,
                     'TGAC': .5,
                     'ACTG': .2}
