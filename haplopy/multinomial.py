@@ -23,6 +23,7 @@ from haplopy import datautils
 #        collections.Counter can be used more directly.
 #      - Maybe reduce the itertools.product thingy.
 # TODO Unit-tests
+# TODO Formulate data as a binary string -> phenotyes as locus sums
 
 
 def log_binomial(n: int, k: int):
@@ -50,16 +51,27 @@ def log_multinomial(*args):
 
 def expectation_maximization(
         phenotypes: List[Tuple[str]],
-        randomize_init: bool=False,
+        randomize: bool=False,
         max_iter: int=100,
-        tol: float=1.0e-6,
+        tol: float=1.0e-12,
         logging_threshold: float=1.0e-6
 ):
+    """Expectation Maximization search for haplotype probabilities
 
-    # TODO: Set initial p_haplotypes
+    Parameters
+    ----------
+
+    References
+    ----------
+    [1] Polanska article for practical implementation
+    [2] Uni. Helsinki course material for proof
+
+    """
+
+    # TODO: Random generate multiple initial values and run many threads
     # TODO: Make sure that haplotype order (dict) is not lost
 
-    n_obs = len(phenotypes)
+    N = len(phenotypes)
 
     (
         parent_haplotypes,
@@ -67,41 +79,62 @@ def expectation_maximization(
         genotype_expansion,
     ) = datautils.describe_phenotypes(phenotypes)
 
-    # Genotype counting matrix for fast multiplication
+    # Genotype count matrix for faster multiplication
     genotype_matrix = datautils.build_genotype_matrix(
         genotype_expansion, parent_haplotypes
     )
 
-    # Log-likelihood constant
-    C = log_multinomial(*counter.values)
+    #
+    # Non-rigorous separation into expectation and maximization
+    #
 
-    def update_haplotype(genotypes, counts):
-        # Update step for a single phenotype
-        # TODO / FIXME: At the end of the day this is just inside a loop.
-        #               So do we really need the complex description / expansion
-        #               methods? Could we just do everything once in here?
-        # NOTE: It makes sense to pre-compute the indexation and counting stuff.
-        #       Otherwise we would be computing it repetitively within the loop.
+    def expectation(ps: np.ndarray):
+        # Calculate (normalized) probability for each genotype (haplotype
+        # pair) and log likelihood
 
-        return
+        def calculate(gs):
+            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in gs])
 
-    def update(p_haplotypes):
+        Ps_raws = [calculate(gs) for gs in genotype_expansion]
+        Ps_units = np.hstack([
+            Ps * n / Ps.sum() / N for (Ps, n) in zip(Ps_raws, counter.values())
+        ])
+        log_likelihood = sum([
+            n * np.log(Ps.sum()) for (Ps, n) in zip(Ps_raws, counter.values())
+        ]) + log_multinomial(*counter.values())
+
+        return (Ps_units, log_likelihood)
+
+    def maximization(Ps):
         # Calculates the next estimate of haplotype probabilities and previous
-        # Log-likelihood
-        #
-        # TODO: Update haplotype probabilities
-        #
-        p_haplotypes = None
-        return p_haplotypes
+        return 0.5 * genotype_matrix.dot(Ps)
 
-    return
+    Nh = len(parent_haplotypes)
+    ps = np.ones(Nh) / Nh
+    n_iter = 0
+    step = np.inf
+    logging.info("Start EM algorithm")
+    while (n_iter <= max_iter) and (step > tol):
+        (Ps, log_likelihood) = expectation(ps)
+        delta = maximization(Ps) - ps
+        step = np.linalg.norm(delta)
+        ps = ps + delta
+        logging.info(
+            "Iteration {0} | log(L) = {1:.4e} | step = {2: .4e}".format(
+                n_iter, log_likelihood, step
+            )
+        )
+
+    # TODO / FIXME: Combine tuple of strings to string
+    #               Requires modifications throughout the code
+    return dict(zip(parent_haplotypes, ps))
 
 
 class Model():
 
     def __init__(self, p_haplotypes: Dict[str, float]=None):
         (haplotypes, ps) = zip(*p_haplotypes.items())
-        assert sum(ps) == 1, "Probabilities must sum to one"
+        assert abs(sum(ps) - 1) < 1e-8, "Probabilities must sum to one"
         self.p_haplotypes = p_haplotypes
         return
 
@@ -110,7 +143,7 @@ class Model():
 
         """
         p_haplotypes = None
-        return HaplotypeMultinomial(p_haplotypes)
+        return Model(p_haplotypes)
 
     def random(self, n_obs: int) -> List[Tuple[str]]:
         """Random generate phenotypes
@@ -280,7 +313,7 @@ class PhenotypeData(object):
         return self._log_likelihood_const
 
 
-def expectation_maximization_update(
+def _expectation_maximization_update(
         phenotype_data,
         proba_haplotypes
 ) -> np.ndarray:
@@ -317,7 +350,7 @@ def expectation_maximization_update(
     return proba_haplotypes, log_likelihood
 
 
-def expectation_maximization(
+def _expectation_maximization(
         phenotype_data,
         proba_haplotypes=None,
         max_iter=20,
@@ -356,7 +389,7 @@ def expectation_maximization(
     i = 0
     delta = np.inf
     while i < max_iter:
-        proba_haplotypes, log_likelihood = expectation_maximization_update(
+        proba_haplotypes, log_likelihood = _expectation_maximization_update(
             phenotype_data, proba_haplotypes
         )
         objective_values.append(log_likelihood)

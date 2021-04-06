@@ -20,7 +20,7 @@ import numpy as np
 from scipy.sparse import dok_matrix
 
 
-def find_parent_haplotypes(phenotypes: List[str]) -> Set[tuple]:
+def find_parent_haplotypes(phenotypes: List[str]) -> List[str]:
     """List parent haplotypes
 
     """
