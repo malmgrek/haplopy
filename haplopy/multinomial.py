@@ -6,10 +6,12 @@ import collections
 from functools import reduce
 import itertools
 import logging
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 from scipy.sparse import dok_matrix
+
+from haplopy import datautils
 
 
 # TODO Randomized initial guess in iteration
@@ -23,9 +25,83 @@ from scipy.sparse import dok_matrix
 # TODO Unit-tests
 
 
-class HaplotypeMultinomial():
+def log_binomial(n: int, k: int):
+    """Logarithm of binomial coefficient using Stirling approximation
+
+    TODO: Unit test
+
+    """
+    return (
+        n * np.log(n) - k * np.log(k) - (n - k) * np.log(n - k)
+        + 0.5 * (np.log(n) - np.log(k) - np.log(n - k) - np.log(2 * np.pi))
+    )
+
+
+def log_multinomial(*args):
+    """Logarithm of the multinomial coefficient
+
+    TODO: Unit test
+
+    """
+    if len(args) == 1:
+        return 1
+    return log_binomial(sum(args), args[-1]) + log_multinomial(args[:-1])
+
+
+def expectation_maximization(
+        phenotypes: List[Tuple[str]],
+        randomize_init: bool=False,
+        max_iter: int=100,
+        tol: float=1.0e-6,
+        logging_threshold: float=1.0e-6
+):
+
+    # TODO: Set initial p_haplotypes
+    # TODO: Make sure that haplotype order (dict) is not lost
+
+    n_obs = len(phenotypes)
+
+    (
+        parent_haplotypes,
+        counter,
+        genotype_expansion,
+    ) = datautils.describe_phenotypes(phenotypes)
+
+    # Genotype counting matrix for fast multiplication
+    genotype_matrix = datautils.build_genotype_matrix(
+        genotype_expansion, parent_haplotypes
+    )
+
+    # Log-likelihood constant
+    C = log_multinomial(*counter.values)
+
+    def update_haplotype(genotypes, counts):
+        # Update step for a single phenotype
+        # TODO / FIXME: At the end of the day this is just inside a loop.
+        #               So do we really need the complex description / expansion
+        #               methods? Could we just do everything once in here?
+        # NOTE: It makes sense to pre-compute the indexation and counting stuff.
+        #       Otherwise we would be computing it repetitively within the loop.
+
+        return
+
+    def update(p_haplotypes):
+        # Calculates the next estimate of haplotype probabilities and previous
+        # Log-likelihood
+        #
+        # TODO: Update haplotype probabilities
+        #
+        p_haplotypes = None
+        return p_haplotypes
+
+    return
+
+
+class Model():
 
     def __init__(self, p_haplotypes: Dict[str, float]=None):
+        (haplotypes, ps) = zip(*p_haplotypes.items())
+        assert sum(ps) == 1, "Probabilities must sum to one"
         self.p_haplotypes = p_haplotypes
         return
 
@@ -35,6 +111,23 @@ class HaplotypeMultinomial():
         """
         p_haplotypes = None
         return HaplotypeMultinomial(p_haplotypes)
+
+    def random(self, n_obs: int) -> List[Tuple[str]]:
+        """Random generate phenotypes
+
+        """
+        (haplotypes, ps) = zip(*self.p_haplotypes.items())
+        parent_inds = np.dot(
+            np.random.multinomial(1, ps, 2 * n_obs),
+            np.arange(len(ps))
+        ).reshape(n_obs, 2)
+        return [
+            tuple(
+                "".join(sorted(diplo))
+                for diplo in zip(haplotypes[i], haplotypes[j])
+            )
+            for (i, j) in parent_inds
+        ]
 
 
 class PhenotypeData(object):
