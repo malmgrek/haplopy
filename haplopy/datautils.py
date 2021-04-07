@@ -20,7 +20,7 @@ import numpy as np
 from scipy.sparse import dok_matrix
 
 
-def find_parent_haplotypes(phenotypes: List[str]) -> List[str]:
+def find_parent_haplotypes(phenotypes: List[Tuple[str]]) -> List[Tuple[str]]:
     """List parent haplotypes
 
     """
@@ -34,7 +34,7 @@ def find_parent_haplotypes(phenotypes: List[str]) -> List[str]:
     ))
 
 
-def factorize(phenotype: Tuple[str]):
+def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
     """List admissible genotypes
 
     """
@@ -48,7 +48,7 @@ def factorize(phenotype: Tuple[str]):
     )
 
 
-def describe_phenotypes(phenotypes: List[str]) -> dict:
+def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
     """Phenotype multiplicity and parent genotype expansion
 
     Returns
@@ -88,7 +88,7 @@ def build_genotype_matrix(genotype_expansion, parent_haplotypes):
 
     """
 
-    genotypes = reduce(lambda x, y: x + y, genotype_expansion)
+    genotypes = reduce(lambda x, y: x + y, genotype_expansion, [])
     matrix = dok_matrix(
         (len(parent_haplotypes), len(genotypes)),
         dtype=int
