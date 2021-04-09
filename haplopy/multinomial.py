@@ -20,30 +20,51 @@ from haplopy import datautils
 #      - Maybe reduce the itertools.product thingy.
 # TODO Unit-tests
 # TODO Formulate data as a binary string -> phenotyes as locus sums
+#      - This would be more restrictive without clear benefits
 # TODO Imputation of missing locus observations e.g. ("A*", "TT", "GC")
 
 
 def log_binomial(n: int, k: int):
     """Logarithm of binomial coefficient using Stirling approximation
 
+    Binomial coefficient easily gets very large. Thus let's approximate
+    directly it's logarithm.
+
+    This is only used as the calibration term in log-likelihood, so accuracy
+    isn't super critical.
+
+    Stirling formula:
+
+                       n
+            _______ ⎛n⎞
+      n = ╲╱ 2 π n  ⎜─⎟
+                    ⎝e⎠
+
     TODO: Unit test
 
     """
+    d = n - k
     return (
-        n * np.log(n) - k * np.log(k) - (n - k) * np.log(n - k)
-        + 0.5 * (np.log(n) - np.log(k) - np.log(n - k) - np.log(2 * np.pi))
+        n * np.log(n) - k * np.log(k) - d * np.log(d)
+        + 0.5 * (np.log(n) - np.log(k) - np.log(d) - np.log(2 * np.pi))
     )
-
 
 def log_multinomial(*args):
     """Logarithm of the multinomial coefficient
 
+    Based on the formula
+
+    (n1 + n2 + ... + nk)!   ⎛n1⎞ ⎛n1 + n2⎞     ⎛n1 + n2 + ... + nk⎞
+    --------------------- = ⎜  ⎟ ⎜       ⎟ ... ⎜                  ⎟
+     n1!  n2!  ...   nk!    ⎝n1⎠ ⎝   n1  ⎠     ⎝        nk        ⎠
+
     TODO: Unit test
 
     """
-    if len(args) == 1:
-        return 1
-    return log_binomial(sum(args), args[-1]) + log_multinomial(args[:-1])
+    return (
+        1 if len(args) == 1 else
+        log_binomial(sum(args), args[-1]) + log_multinomial(args[:-1])
+    )
 
 
 def expectation_maximization(
@@ -136,9 +157,10 @@ class Model():
         return
 
     def fit(self, phenotypes: Dict[str, float]):
-        """Expectation Maximization
+        """Fit haplotype probabilities using EM algorithm
 
         """
+        # TODO Call expectation_maximization
         p_haplotypes = None
         return Model(p_haplotypes)
 
