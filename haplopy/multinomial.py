@@ -1,7 +1,10 @@
-"""Haplotype imputation model
+"""Haplotype frequency inference model
 
 """
 
+from __future__ import annotations
+
+from functools import reduce
 import logging
 from typing import Dict, List, Tuple
 
@@ -10,84 +13,47 @@ import numpy as np
 from haplopy import datautils
 
 
-# TODO Randomized initial guess in iteration
-# TODO Imputation example
-# TODO Try BayesPy: We can directly use analysis content:
-#      - genotype_expansion gives the "draws" such that each
-#        index is a "color". Sample numbers are obtained by
-#        multiplying each index occurrences with "counts". Perhaps
-#        collections.Counter can be used more directly.
-#      - Maybe reduce the itertools.product thingy.
-# TODO Unit-tests
-# TODO Formulate data as a binary string -> phenotyes as locus sums
-#      - This would be more restrictive without clear benefits
-# TODO Imputation of missing locus observations e.g. ("A*", "TT", "GC")
-
-
-def log_binomial(n: int, k: int):
-    """Logarithm of binomial coefficient using Stirling approximation
-
-    Binomial coefficient easily gets very large. Thus let's approximate
-    directly it's logarithm.
-
-    This is only used as the calibration term in log-likelihood, so accuracy
-    isn't super critical.
-
-    Stirling formula:
-
-                       n
-            _______ ⎛n⎞
-      n = ╲╱ 2 π n  ⎜─⎟
-                    ⎝e⎠
-
-    TODO: Unit test
-
-    """
-    d = n - k
-    return (
-        n * np.log(n) - k * np.log(k) - d * np.log(d)
-        + 0.5 * (np.log(n) - np.log(k) - np.log(d) - np.log(2 * np.pi))
-    )
-
-def log_multinomial(*args):
+def log_multinomial(*ns: int):
     """Logarithm of the multinomial coefficient
 
-    Based on the formula
+        (n1 + n2 + ... + nk)!
+        ---------------------
+        n1!  n2!  ...   nk!
 
-    (n1 + n2 + ... + nk)!   ⎛n1⎞ ⎛n1 + n2⎞     ⎛n1 + n2 + ... + nk⎞
-    --------------------- = ⎜  ⎟ ⎜       ⎟ ... ⎜                  ⎟
-     n1!  n2!  ...   nk!    ⎝n1⎠ ⎝   n1  ⎠     ⎝        nk        ⎠
-
-    TODO: Unit test
+    log(n!) = log(n) + log(n-1) + log(n-2) + ... + log(1)
 
     """
-    return (
-        1 if len(args) == 1 else
-        log_binomial(sum(args), args[-1]) + log_multinomial(args[:-1])
-    )
+
+    def log_factorial(n):
+        return np.log(np.arange(1, n + 1)).sum()
+
+    return log_factorial(sum(ns)) - sum(map(log_factorial, ns))
 
 
 def expectation_maximization(
         phenotypes: List[Tuple[str]],
-        randomize: bool=False,
+        # randomize: bool=False,
         max_iter: int=100,
-        tol: float=1.0e-12,
-        logging_threshold: float=1.0e-6
+        tol: float=1.0e-12
 ):
     """Expectation Maximization search for haplotype probabilities
 
+    Philosophically, builds upon the hypotheses of Hardy-Weinberg equilibrium
+    and random mating.
+
     Parameters
     ----------
+    max_iter : int
+        Maximum number of iterations
+    tol : float
+        Stopping criterion with respect to Euclidean norm of
+        probabilities vector
 
-    References
-    ----------
-    [1] Polanska article for practical implementation
-    [2] Uni. Helsinki course material for proof
+    TODO: Random generate initial values and run many optimization threads
+    TODO: Make sure that haplotype order (dict) is not lost
 
     """
 
-    # TODO: Random generate multiple initial values and run many threads
-    # TODO: Make sure that haplotype order (dict) is not lost
 
     N = len(phenotypes)
 
@@ -103,12 +69,24 @@ def expectation_maximization(
     )
 
     #
-    # Non-rigorous separation into expectation and maximization
+    # Separation into expectation and maximization
+    #
+    # This is not a mathematically accurate separation
+    # but loosely based on [1]. The update formulae are non-trivial to
+    # derive. A clear mathematical proof is found, e.g., in [2].
+    #
+    # [1] J. Polanska, The EM algorithm and its implementation for the
+    #     estimation of frequencies of SNP-haplotypes, Int. J. Appl. Math.
+    #     Comput. Sci., 2003, Vol. 13, No. 3, 419-429.
+    #
+    # [2] Mikko Koivisto, 582673 Computational Genotype Analysis (lecture 2
+    #     notes), Uni. Helsinki
     #
 
     def expectation(ps: np.ndarray):
-        # Calculate (normalized) probability for each genotype (haplotype
-        # pair) and log likelihood
+        """Calculate probability for each pair and evaluate log-likelihood
+
+        """
 
         def calculate(gs):
             return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in gs])
@@ -124,7 +102,9 @@ def expectation_maximization(
         return (Ps_units, log_likelihood)
 
     def maximization(Ps):
-        # Calculates the next estimate of haplotype probabilities and previous
+        """Calculate next estimates of haplotype probabilities
+
+        """
         return 0.5 * genotype_matrix.dot(Ps)
 
     Nh = len(parent_haplotypes)
@@ -143,31 +123,28 @@ def expectation_maximization(
             )
         )
 
-    # TODO / FIXME: Combine tuple of strings to string
-    #               Requires modifications throughout the code
-    return dict(zip(parent_haplotypes, ps))
+    return (
+        dict(zip(parent_haplotypes, ps)),
+        log_likelihood
+    )
 
 
 class Model():
 
-    def __init__(self, p_haplotypes: Dict[str, float]=None):
+    def __init__(self, p_haplotypes: Dict[Tuple[str], float]=None):
+        if p_haplotypes is None:
+            return
         (haplotypes, ps) = zip(*p_haplotypes.items())
         assert abs(sum(ps) - 1) < 1e-8, "Probabilities must sum to one"
         self.p_haplotypes = p_haplotypes
         return
 
-    def fit(self, phenotypes: Dict[str, float]):
-        """Fit haplotype probabilities using EM algorithm
-
-        """
-        # TODO Call expectation_maximization
-        p_haplotypes = None
-        return Model(p_haplotypes)
-
     def random(self, n_obs: int) -> List[Tuple[str]]:
         """Random generate phenotypes
 
         """
+        if self.p_haplotypes is None:
+            raise ValueError("Model probabilities unspecified, cannot randomize.")
         (haplotypes, ps) = zip(*self.p_haplotypes.items())
         parent_inds = np.dot(
             np.random.multinomial(1, ps, 2 * n_obs),
@@ -180,3 +157,10 @@ class Model():
             )
             for (i, j) in parent_inds
         ]
+
+    def fit(self, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
+        """Fit maximum likelihood haplotype probabilities using EM algorithm
+
+        """
+        (p_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
+        return Model(p_haplotypes)
