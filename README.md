@@ -7,7 +7,7 @@ This package contains tools for estimating haplotype (or allele list) frequencie
 In layman terms, a phenotype is defined as an observation of two-allele sets
 over multiple gene loci:
 
-``` shell
+``` text
     Aa ––––––– Bb ––––––– Cc
     |          |          |
   locus 1    locus 2    locus 3
@@ -17,14 +17,14 @@ Note that the above datum doesn't reveal what are the exact haplotype (allele
 sequence) pair behind the phenotype. Possible parent haplotype pairs that could
 result into the above phenotype are given by
 
-``` shell
+``` text
 (ABC, abc), (aBC, Abc), (AbC, aBc), (abC, ABc)
 ```
 
 In other words, the mapping that maps a haplotype pair to a phenotype is defined
 by the example
 
-``` shell
+``` text
 (Abc, aBC) => (Aa, Bb, Cc)
 ```
 
@@ -41,7 +41,7 @@ haplotype frequencies in the population
 
 The package is found in PyPi.
 
-``` shell
+``` text
 pip install haplopy
 ```
 
