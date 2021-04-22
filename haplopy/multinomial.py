@@ -130,10 +130,22 @@ def expectation_maximization(
 
 
 class Model():
+    """Haplotype multinomial distribution estimator
 
-    def __init__(self, p_haplotypes: Dict[Tuple[str], float]=None):
-        if p_haplotypes is None:
-            return
+    Example
+    -------
+
+    .. code-block:: python
+
+        import haplopy as hp
+
+        model = hp.multinomial.Model({("a", "b"): 0.5, ("A", "B"): 0.5})
+        phenotypes = model.random(10)
+        model_est = hp.multinomial.Model.fit(phenotypes)
+
+    """
+
+    def __init__(self, p_haplotypes: Dict[Tuple[str], float]):
         (haplotypes, ps) = zip(*p_haplotypes.items())
         assert abs(sum(ps) - 1) < 1e-8, "Probabilities must sum to one"
         self.p_haplotypes = p_haplotypes
@@ -143,8 +155,6 @@ class Model():
         """Random generate phenotypes
 
         """
-        if self.p_haplotypes is None:
-            raise ValueError("Model probabilities unspecified, cannot randomize.")
         (haplotypes, ps) = zip(*self.p_haplotypes.items())
         parent_inds = np.dot(
             np.random.multinomial(1, ps, 2 * n_obs),
@@ -158,37 +168,36 @@ class Model():
             for (i, j) in parent_inds
         ]
 
-    def fit(self, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
+    @classmethod
+    def fit(cls, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
         """Fit maximum likelihood haplotype probabilities using EM algorithm
 
         """
         (p_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
-        return Model(p_haplotypes)
+        return cls(p_haplotypes)
 
-    def get_posterior(self, phenotypes: Dict[Tuple[str], float]) -> tuple:
+    def proba_diplotypes(self, phenotypes: Dict[Tuple[str], float]):
+        """Calculate admissible diplotypes' conditional probabilities
+
         """
-        Return the posterior probabilites of diplotypes (a combination of two haplotypes) matching
-        the input phenotype
-        """
-        if self.p_haplotypes is None:
-            raise ValueError("Model probabilities unspecified, cannot compute posterior.")
 
-        possible_diplotypes = datautils.describe_phenotypes(phenotypes)
-        haplos = possible_diplotypes[0]
-        pairs = possible_diplotypes[2][0]
-        probs = []
+        (haplotypes, ps) = zip(*self.p_haplotypes.items())
+        (
+            parent_haplotypes,
+            counter,
+            genotype_expansion
+        ) = datautils.describe_phenotypes(phenotypes)
 
-        for pair in pairs:
-            haplo1 = haplos[pair[0]]
-            haplo2 = haplos[pair[1]]
-            probs.append(2*self.p_haplotypes.get(haplo1)*self.p_haplotypes.get(haplo2))
+        def calculate(gs):
+            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in gs])
 
-        probs = probs/np.sum(probs)
+        def normalize(x):
+            return x / x.sum()
 
-        return (possible_diplotypes, probs)
+        def to_dict(gs):
+            keys = [(haplotypes[i], haplotypes[j]) for (i, j) in gs]
+            values = normalize(calculate(gs))
+            return dict(zip(keys, values))
 
-
-
-
-
+        return list(map(to_dict, genotype_expansion))
 
