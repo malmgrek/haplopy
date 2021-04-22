@@ -79,7 +79,7 @@ def test_factorize(phenotype, expected):
     return
 
 
-@pytest.mark.parametrize("genotype_expansion,parent_haplotypes,expected", [
+@pytest.mark.parametrize("diplotype_expansion,parent_haplotypes,expected", [
     (
         [],
         ["foobar", 1, 2],
@@ -101,7 +101,7 @@ def test_factorize(phenotype, expected):
         ])
     )
 ])
-def test_build_genotype_matrix(genotype_expansion, parent_haplotypes, expected):
-    res = datautils.build_genotype_matrix(genotype_expansion, parent_haplotypes)
+def test_build_diplotype_matrix(diplotype_expansion, parent_haplotypes, expected):
+    res = datautils.build_diplotype_matrix(diplotype_expansion, parent_haplotypes)
     assert_equal(res.toarray(), expected)
     return

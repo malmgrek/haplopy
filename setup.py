@@ -9,7 +9,7 @@ with open(os.path.join(os.path.dirname(__file__), "README.md")) as fh:
 setup(
     name='haplopy',
     version='0.0.2',
-    description='Haplotype reconstruction from unphased genotypes',
+    description='Haplotype reconstruction from unphased diplotypes',
     author='Stratos Staboulis',
     url="https://github.com/malmgrek/haplopy",
     packages=find_packages(exclude=["contrib", "doc", "tests"]),

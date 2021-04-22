@@ -60,12 +60,12 @@ def expectation_maximization(
     (
         parent_haplotypes,
         counter,
-        genotype_expansion,
+        diplotype_expansion,
     ) = datautils.describe_phenotypes(phenotypes)
 
-    # Genotype count matrix for faster multiplication
-    genotype_matrix = datautils.build_genotype_matrix(
-        genotype_expansion, parent_haplotypes
+    # Diplotype count matrix for faster multiplication
+    diplotype_matrix = datautils.build_diplotype_matrix(
+        diplotype_expansion, parent_haplotypes
     )
 
     #
@@ -88,10 +88,10 @@ def expectation_maximization(
 
         """
 
-        def calculate(gs):
-            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in gs])
+        def calculate(ds):
+            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in ds])
 
-        Ps_raws = [calculate(gs) for gs in genotype_expansion]
+        Ps_raws = [calculate(ds) for ds in diplotype_expansion]
         Ps_units = np.hstack([
             Ps * n / Ps.sum() / N for (Ps, n) in zip(Ps_raws, counter.values())
         ])
@@ -105,7 +105,7 @@ def expectation_maximization(
         """Calculate next estimates of haplotype probabilities
 
         """
-        return 0.5 * genotype_matrix.dot(Ps)
+        return 0.5 * diplotype_matrix.dot(Ps)
 
     Nh = len(parent_haplotypes)
     ps = np.ones(Nh) / Nh
@@ -185,19 +185,18 @@ class Model():
         (
             parent_haplotypes,
             counter,
-            genotype_expansion
+            diplotype_expansion
         ) = datautils.describe_phenotypes(phenotypes)
 
-        def calculate(gs):
-            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in gs])
+        def calculate(ds):
+            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in ds])
 
         def normalize(x):
             return x / x.sum()
 
-        def to_dict(gs):
-            keys = [(haplotypes[i], haplotypes[j]) for (i, j) in gs]
-            values = normalize(calculate(gs))
+        def to_dict(ds):
+            keys = [(haplotypes[i], haplotypes[j]) for (i, j) in ds]
+            values = normalize(calculate(ds))
             return dict(zip(keys, values))
 
-        return list(map(to_dict, genotype_expansion))
-
+        return list(map(to_dict, diplotype_expansion))

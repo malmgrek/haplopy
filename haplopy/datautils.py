@@ -5,9 +5,9 @@ Terminology
 
 haplotype : A sequence of nucleotides
 
-genotype : A pair of haplotypes
+diplotype : A pair of haplotypes
 
-phenotype : A sequence of nucleotide pairs with unspecified genotype
+phenotype : A sequence of nucleotide pairs with unspecified diplotype
 
 """
 
@@ -35,7 +35,7 @@ def find_parent_haplotypes(phenotypes: List[Tuple[str]]) -> List[Tuple[str]]:
 
 
 def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
-    """List admissible genotypes
+    """List admissible diplotypes
 
     """
     factors = list(itertools.product(*[
@@ -49,7 +49,7 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
 
 
 def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
-    """Phenotype multiplicity and parent genotype expansion
+    """Phenotype multiplicity and parent diplotype expansion
 
     Returns
     -------
@@ -59,7 +59,7 @@ def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
         the dataset.
     counter : collections.Counter
         Occurrence count of each unique phenotype in the dataset.
-    genotype_expansion : List[List[tuple]]
+    diplotype_expansion : List[List[tuple]]
         Each item corresponds to the element in `counter` with same index.
         The item is a list of index pairs. Each index points to an element
         in `parent_haplotypes`, and the pair stands for an admissible parent
@@ -76,27 +76,27 @@ def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
             for (x, y) in factorize(phenotype)
         ]
 
-    genotype_expansion = list(map(factorize_to_index, counter))
+    diplotype_expansion = list(map(factorize_to_index, counter))
 
-    return (parent_haplotypes, counter, genotype_expansion)
+    return (parent_haplotypes, counter, diplotype_expansion)
 
 
-def build_genotype_matrix(genotype_expansion, parent_haplotypes):
-    """Haplotype multiplicity in a 'N haplotypes' * 'M genotypes' matrix
+def build_diplotype_matrix(diplotype_expansion, parent_haplotypes):
+    """Haplotype multiplicity in a 'N haplotypes' * 'M diplotypes' matrix
 
-    Points out how many times haplotype n is present in genotype m
+    Points out how many times haplotype n is present in diplotype m
 
     """
 
-    genotypes = reduce(lambda x, y: x + y, genotype_expansion, [])
+    diplotypes = reduce(lambda x, y: x + y, diplotype_expansion, [])
     matrix = dok_matrix(
-        (len(parent_haplotypes), len(genotypes)),
+        (len(parent_haplotypes), len(diplotypes)),
         dtype=int
     )
 
     # Populate matrix
-    for (i, genotype) in enumerate(genotypes):
-        matrix[genotype[0], i] += 1
-        matrix[genotype[1], i] += 1
+    for (i, diplotype) in enumerate(diplotypes):
+        matrix[diplotype[0], i] += 1
+        matrix[diplotype[1], i] += 1
 
     return matrix
