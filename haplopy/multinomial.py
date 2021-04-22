@@ -164,3 +164,31 @@ class Model():
         """
         (p_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
         return Model(p_haplotypes)
+
+    def get_posterior(self, phenotypes: Dict[Tuple[str], float]) -> tuple:
+        """
+        Return the posterior probabilites of diplotypes (a combination of two haplotypes) matching
+        the input phenotype
+        """
+        if self.p_haplotypes is None:
+            raise ValueError("Model probabilities unspecified, cannot compute posterior.")
+
+        possible_diplotypes = datautils.describe_phenotypes(phenotypes)
+        haplos = possible_diplotypes[0]
+        pairs = possible_diplotypes[2][0]
+        probs = []
+
+        for pair in pairs:
+            haplo1 = haplos[pair[0]]
+            haplo2 = haplos[pair[1]]
+            probs.append(2*self.p_haplotypes.get(haplo1)*self.p_haplotypes.get(haplo2))
+
+        probs = probs/np.sum(probs)
+
+        return (possible_diplotypes, probs)
+
+
+
+
+
+
