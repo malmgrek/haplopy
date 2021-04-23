@@ -1,7 +1,5 @@
 """Haplotype frequency inference model
 
-TODO: Fix diplotype probability output
-TODO: Explicit phenotypes in multinomial unit tests
 TODO: Batch learning + tests
       - Should normalize probability in loop or at end?
 TODO: Random generate EM initial values
@@ -194,13 +192,15 @@ class Model():
         raise NotImplementedError
 
     def calculate_proba_diplotypes(
-            self, phenotypes: Dict[Tuple[str], float]
+            self,
+            phenotypes: Dict[Tuple[str], float]
     ) -> List[Dict[Tuple[str], float]]:
         """Calculate admissible diplotypes' conditional probabilities
 
         """
 
-        # FIXME: Get rid of `parent` naming here. It should be just haplotypes
+        # We need parent haplotypes to handle cases where admissible diplotypes
+        # contain haplotypes missing from model
         parent_haplotypes = datautils.find_parent_haplotypes(phenotypes)
         (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
             parent_haplotypes, phenotypes
@@ -225,14 +225,18 @@ class Model():
         def normalize(x):
             return x / x.sum()
 
-        def to_dict_list(xs):
-            (count, ds) = xs
+        def to_dict(ds):
             keys = [(haplotypes[i], haplotypes[j]) for (i, j) in ds]
             values = normalize(calculate(ds))
-            return count * [dict(zip(keys, values))]
+            return dict(zip(keys, values))
 
-        return reduce(
-            lambda acc, x: acc + x,
-            map(to_dict_list, zip(counter.values(), diplotype_expansion)),
-            []
-        )
+        # Calculate a dict of diplotype probabilities for each unique
+        # phenotype
+        lookup_probas = list(map(to_dict, diplotype_expansion))
+        unique_phenotypes = list(counter)
+
+        # Retrieve a probability dict for each of the phenotypes
+        return [
+            lookup_probas[unique_phenotypes.index(phenotype)]
+            for phenotype in phenotypes
+        ]

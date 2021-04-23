@@ -141,16 +141,28 @@ def test_model(proba_haplotypes, n_obs, expected):
             ("a", "b"): 0.4
         },
         [
-            {(('a', 'B'), ('a', 'B')): 1.0},
-            {(('A', 'b'), ('A', 'b')): 1.0},
-            {(('A', 'b'), ('a', 'b')): 1.0},
-            {(('A', 'b'), ('a', 'b')): 1.0},
-            {(('A', 'b'), ('a', 'b')): 1.0},
-            {(('A', 'b'), ('a', 'b')): 1.0},
-            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
+            ('Aa', 'Bb'),
+            ('aa', 'bb'),
+            ('Aa', 'bb'),
+            ('aa', 'bb'),
+            ('Aa', 'BB'),
+            ('Aa', 'Bb'),
+            ('Aa', 'Bb'),
+            ('Aa', 'bb'),
+            ('aa', 'Bb'),
+            ('Aa', 'Bb')
+        ],
+        [
             {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
             {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'b'), ('a', 'b')): 1.0},
+            {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('a', 'B')): 1.0},
+            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
+            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
+            {(('A', 'b'), ('a', 'b')): 1.0},
             {(('a', 'B'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
         ]
     ),
     # Some haplotypes missing
@@ -160,14 +172,26 @@ def test_model(proba_haplotypes, n_obs, expected):
             ("a", "b"): 0.5
         },
         [
-            {(('A', 'B'), ('A', 'B')): 1.0},
-            {(('A', 'B'), ('A', 'B')): 1.0},
+            ('aa', 'bb'),
+            ('Aa', 'Bb'),
+            ('AA', 'BB'),
+            ('Aa', 'Bb'),
+            ('aa', 'bb'),
+            ('AA', 'BB'),
+            ('Aa', 'Bb'),
+            ('aa', 'bb'),
+            ('Aa', 'Bb'),
+            ('Aa', 'Bb')
+        ],
+        [
             {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('A', 'B')): 1.0},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
             {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('A', 'B')): 1.0},
             {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
             {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
         ]
@@ -175,7 +199,6 @@ def test_model(proba_haplotypes, n_obs, expected):
 ])
 def test_proba_diplotypes(proba_haplotypes, phenotypes, expected):
     model = Model(proba_haplotypes)
-    phenotypes = model.random(10)
     proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
     for (x, e) in zip(proba_diplotypes, expected):
         assert_dicts_almost_equal(x, e)
