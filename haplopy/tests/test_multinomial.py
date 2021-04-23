@@ -10,14 +10,11 @@ from haplopy.multinomial import log_multinomial, expectation_maximization, Model
 np.random.seed(666)
 
 
-def assert_dicts_almost_equal(x, y, sort_tuple_keys=False, **kwargs):
-    # Sometimes each key is a tuple
-    if sort_tuple_keys:
-        x = {tuple(sorted(k)): v for (k, v) in x.items()}
-        y = {tuple(sorted(k)): v for (k, v) in y.items()}
-    assert x.keys() == y.keys()
-    keys = sorted(x.keys())
-    assert_almost_equal([x[k] for k in keys], [y[k] for k in keys], **kwargs)
+def assert_dicts_almost_equal(x, y, **kwargs):
+    (x_keys, x_values) = zip(*x.items())
+    (y_keys, y_values) = zip(*y.items())
+    assert x_keys == y_keys
+    assert_almost_equal(x_values, y_values)
 
 
 @pytest.mark.parametrize("args,expected", [
@@ -117,8 +114,8 @@ def test_model_init():
         1000,
         {
             ("A", "B", "C"): 0.2370,
-            ("a", "b", "c"): 0.6585,
-            ("A", "b", "C"): 0.1045
+            ("A", "b", "C"): 0.1045,
+            ("a", "b", "c"): 0.6585
         }
     )
 ])
@@ -127,10 +124,8 @@ def test_model(p_haplotypes, n_obs, expected):
     phenotypes = model.random(n_obs)
     model_fitted = model.fit(phenotypes)
     # Assert that essentially nonzero probabilities coincide with expected
-    assert_dicts_almost_equal(
-        {k: v for (k, v) in model_fitted.p_haplotypes.items() if v >= 1e-8},
-        expected
-    )
+    result = {k: v for (k, v) in model_fitted.p_haplotypes.items() if v >= 1e-8}
+    assert_dicts_almost_equal(result, expected)
     return
 
 
@@ -144,11 +139,16 @@ def test_model(p_haplotypes, n_obs, expected):
             ("a", "b"): 0.4
         },
         [
-            {(("A", "b"), ("a", "B")): 0.6, (("A", "B"), ("a", "b")): 0.4},
-            {(("a", "b"), ("a", "b")): 1.0},
-            {(("A", "b"), ("a", "b")): 1.0},
-            {(("A", "B"), ("a", "B")): 1.0},
-            {(("a", "b"), ("a", "B")): 1.0}
+            {(('a', 'B'), ('a', 'B')): 1.0},
+            {(('A', 'b'), ('A', 'b')): 1.0},
+            {(('A', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
+            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
+            {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('a', 'B'), ('a', 'b')): 1.0},
         ]
     ),
     # Some haplotypes missing
@@ -158,9 +158,16 @@ def test_model(p_haplotypes, n_obs, expected):
             ("a", "b"): 0.5
         },
         [
-            {(("a", "b"), ("a", "b")): 1.0},
-            {(("a", "b"), ("A", "B")): np.NaN, (("a", "B"), ("A", "b")): np.NaN},
-            {(("A", "B"), ("A", "B")): 1.0}
+            {(('A', 'B'), ('A', 'B')): 1.0},
+            {(('A', 'B'), ('A', 'B')): 1.0},
+            {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('a', 'b'), ('a', 'b')): 1.0},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
         ]
     )
 ])
@@ -169,5 +176,5 @@ def test_proba_diplotypes(p_haplotypes, expected):
     phenotypes = model.random(10)
     proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
     for (x, e) in zip(proba_diplotypes, expected):
-        assert_dicts_almost_equal(x, e, sort_tuple_keys=True)
+        assert_dicts_almost_equal(x, e)
     return

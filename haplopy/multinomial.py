@@ -186,7 +186,7 @@ class Model():
         FIXME: Now only calculates results for unique phenotypes, thus the
                returned list may be shorter than input list
 
-        TODO: Sort by probability each row of the result
+        TODO / REVIEW: Should sort by probability each row of the result?
 
         """
 
@@ -213,9 +213,14 @@ class Model():
         def normalize(x):
             return x / x.sum()
 
-        def to_dict(ds):
+        def to_dict_list(xs):
+            (count, ds) = xs
             keys = [(haplotypes[i], haplotypes[j]) for (i, j) in ds]
             values = normalize(calculate(ds))
-            return dict(zip(keys, values))
+            return count * [dict(zip(keys, values))]
 
-        return list(map(to_dict, diplotype_expansion))
+        return reduce(
+            lambda acc, x: acc + x,
+            map(to_dict_list, zip(counter.values(), diplotype_expansion)),
+            []
+        )
