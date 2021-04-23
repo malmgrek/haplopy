@@ -1,5 +1,7 @@
 """Haplotype frequency inference model
 
+FIXME: Many functions are unpure: ordering of some result dicts etc. change.
+
 """
 
 from __future__ import annotations
@@ -176,17 +178,34 @@ class Model():
         (p_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
         return cls(p_haplotypes)
 
-    def proba_diplotypes(self, phenotypes: Dict[Tuple[str], float]):
+    def calculate_proba_diplotypes(
+            self, phenotypes: Dict[Tuple[str], float]
+    ) -> List[Dict[Tuple[str], float]]:
         """Calculate admissible diplotypes' conditional probabilities
+
+        FIXME: Now only calculates results for unique phenotypes, thus the
+               returned list may be shorter than input list
+
+        TODO: Sort by probability each row of the result
 
         """
 
-        (haplotypes, ps) = zip(*self.p_haplotypes.items())
         (
             parent_haplotypes,
             counter,
             diplotype_expansion
         ) = datautils.describe_phenotypes(phenotypes)
+
+        # Model's haplotypes might not contain all of the constituent haplotypes
+        # of the given set of phenotypes. The probability of such haplotypes
+        # will be considered NaN. Note that the implied ambiguity in unit
+        # summability of the NaN-probability distribution doesn't ruin the
+        # calculation of diplotype probabilities (with the existing haplotypes)
+        # because each conditional probability is normalized.
+        p_haplotypes = {
+            h: self.p_haplotypes.get(h, np.NaN) for h in parent_haplotypes
+        }
+        (haplotypes, ps) = zip(*p_haplotypes.items())
 
         def calculate(ds):
             return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in ds])

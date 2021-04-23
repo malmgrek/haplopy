@@ -10,7 +10,11 @@ from haplopy.multinomial import log_multinomial, expectation_maximization, Model
 np.random.seed(666)
 
 
-def assert_dicts_almost_equal(x, y, **kwargs):
+def assert_dicts_almost_equal(x, y, sort_tuple_keys=False, **kwargs):
+    # Sometimes each key is a tuple
+    if sort_tuple_keys:
+        x = {tuple(sorted(k)): v for (k, v) in x.items()}
+        y = {tuple(sorted(k)): v for (k, v) in y.items()}
     assert x.keys() == y.keys()
     keys = sorted(x.keys())
     assert_almost_equal([x[k] for k in keys], [y[k] for k in keys], **kwargs)
@@ -127,4 +131,43 @@ def test_model(p_haplotypes, n_obs, expected):
         {k: v for (k, v) in model_fitted.p_haplotypes.items() if v >= 1e-8},
         expected
     )
+    return
+
+
+@pytest.mark.parametrize("p_haplotypes,expected", [
+    # All haplotypes present
+    (
+        {
+            ("A", "B"): 0.1,
+            ("a", "B"): 0.2,
+            ("A", "b"): 0.3,
+            ("a", "b"): 0.4
+        },
+        [
+            {(("A", "b"), ("a", "B")): 0.6, (("A", "B"), ("a", "b")): 0.4},
+            {(("a", "b"), ("a", "b")): 1.0},
+            {(("A", "b"), ("a", "b")): 1.0},
+            {(("A", "B"), ("a", "B")): 1.0},
+            {(("a", "b"), ("a", "B")): 1.0}
+        ]
+    ),
+    # Some haplotypes missing
+    (
+        {
+            ("A", "B"): 0.5,
+            ("a", "b"): 0.5
+        },
+        [
+            {(("a", "b"), ("a", "b")): 1.0},
+            {(("a", "b"), ("A", "B")): np.NaN, (("a", "B"), ("A", "b")): np.NaN},
+            {(("A", "B"), ("A", "B")): 1.0}
+        ]
+    )
+])
+def test_proba_diplotypes(p_haplotypes, expected):
+    model = Model(p_haplotypes)
+    phenotypes = model.random(10)
+    proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
+    for (x, e) in zip(proba_diplotypes, expected):
+        assert_dicts_almost_equal(x, e, sort_tuple_keys=True)
     return
