@@ -56,7 +56,7 @@ a multinomial distribution model.
 import haplopy as hp
 
 
-p_haplotypes = {
+proba_haplotypes = {
     ("A", "B", "C"): 0.34,
     ("a", "B", "c"): 0.20,
     ("a", "B", "C"): 0.13,
@@ -64,9 +64,9 @@ p_haplotypes = {
     ("A", "b", "C"): 0.10
 }
 
-phenotypes = hp.multinomial.Model(p_haplotypes).random(100)
+phenotypes = hp.multinomial.Model(proba_haplotypes).random(100)
 
-fig = hp.plot.plot_haplotypes(p_haplotypes)
+fig = hp.plot.plot_haplotypes(proba_haplotypes)
 fig = hp.plot.plot_phenotypes(phenotypes)
 ```
 
@@ -79,7 +79,7 @@ Pretend that we don't know the underlying haplotype distribution and let's try t
 ``` python
 model = hp.multinomial.Model().fit(phenotypes)
 fig = hp.plot.plot_haplotypes(
-    model.p_haplotypes,
+    model.proba_haplotypes,
     thres=1.0e-6  # Hide probabilities smaller than this
 )
 ```

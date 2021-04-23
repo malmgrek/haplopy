@@ -1,7 +1,5 @@
 """Haplotype frequency inference model
 
-FIXME: Many functions are unpure: ordering of some result dicts etc. change.
-
 """
 
 from __future__ import annotations
@@ -85,13 +83,15 @@ def expectation_maximization(
     #     notes), Uni. Helsinki
     #
 
-    def expectation(ps: np.ndarray):
+    def expectation(probas: np.ndarray):
         """Calculate probability for each pair and evaluate log-likelihood
 
         """
 
         def calculate(ds):
-            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in ds])
+            return np.array([
+                2 ** (i != j) * probas[i] * probas[j] for (i, j) in ds
+            ])
 
         Ps_raws = [calculate(ds) for ds in diplotype_expansion]
         Ps_units = np.hstack([
@@ -110,15 +110,15 @@ def expectation_maximization(
         return 0.5 * diplotype_matrix.dot(Ps)
 
     Nh = len(parent_haplotypes)
-    ps = np.ones(Nh) / Nh
+    probas = np.ones(Nh) / Nh
     n_iter = 0
     step = np.inf
     logging.info("Start EM algorithm")
     while (n_iter <= max_iter) and (step > tol):
-        (Ps, log_likelihood) = expectation(ps)
-        delta = maximization(Ps) - ps
+        (Ps, log_likelihood) = expectation(probas)
+        delta = maximization(Ps) - probas
         step = np.linalg.norm(delta)
-        ps = ps + delta
+        probas = probas + delta
         logging.info(
             "Iteration {0} | log(L) = {1:.4e} | step = {2: .4e}".format(
                 n_iter, log_likelihood, step
@@ -126,7 +126,7 @@ def expectation_maximization(
         )
 
     return (
-        dict(zip(parent_haplotypes, ps)),
+        dict(zip(parent_haplotypes, probas)),
         log_likelihood
     )
 
@@ -147,20 +147,20 @@ class Model():
 
     """
 
-    def __init__(self, p_haplotypes: Dict[Tuple[str], float]):
-        (haplotypes, ps) = zip(*p_haplotypes.items())
-        assert abs(sum(ps) - 1) < 1e-8, "Probabilities must sum to one"
-        self.p_haplotypes = p_haplotypes
+    def __init__(self, proba_haplotypes: Dict[Tuple[str], float]):
+        (haplotypes, probas) = zip(*proba_haplotypes.items())
+        assert abs(sum(probas) - 1) < 1e-8, "Probabilities must sum to one"
+        self.proba_haplotypes = proba_haplotypes
         return
 
     def random(self, n_obs: int) -> List[Tuple[str]]:
         """Random generate phenotypes
 
         """
-        (haplotypes, ps) = zip(*self.p_haplotypes.items())
+        (haplotypes, probas) = zip(*self.proba_haplotypes.items())
         parent_inds = np.dot(
-            np.random.multinomial(1, ps, 2 * n_obs),
-            np.arange(len(ps))
+            np.random.multinomial(1, probas, 2 * n_obs),
+            np.arange(len(probas))
         ).reshape(n_obs, 2)
         return [
             tuple(
@@ -175,16 +175,13 @@ class Model():
         """Fit maximum likelihood haplotype probabilities using EM algorithm
 
         """
-        (p_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
-        return cls(p_haplotypes)
+        (proba_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
+        return cls(proba_haplotypes)
 
     def calculate_proba_diplotypes(
             self, phenotypes: Dict[Tuple[str], float]
     ) -> List[Dict[Tuple[str], float]]:
         """Calculate admissible diplotypes' conditional probabilities
-
-        FIXME: Now only calculates results for unique phenotypes, thus the
-               returned list may be shorter than input list
 
         TODO / REVIEW: Should sort by probability each row of the result?
 
@@ -202,13 +199,15 @@ class Model():
         # summability of the NaN-probability distribution doesn't ruin the
         # calculation of diplotype probabilities (with the existing haplotypes)
         # because each conditional probability is normalized.
-        p_haplotypes = {
-            h: self.p_haplotypes.get(h, np.NaN) for h in parent_haplotypes
+        proba_haplotypes = {
+            h: self.proba_haplotypes.get(h, np.NaN) for h in parent_haplotypes
         }
-        (haplotypes, ps) = zip(*p_haplotypes.items())
+        (haplotypes, probas) = zip(*proba_haplotypes.items())
 
         def calculate(ds):
-            return np.array([2 ** (i != j) * ps[i] * ps[j] for (i, j) in ds])
+            return np.array([
+                2 ** (i != j) * probas[i] * probas[j] for (i, j) in ds
+            ])
 
         def normalize(x):
             return x / x.sum()

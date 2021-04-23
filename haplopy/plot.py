@@ -10,7 +10,7 @@ import numpy as np
 
 
 def plot_haplotypes(
-        p_haplotypes: Dict[Tuple[str], float],
+        proba_haplotypes: Dict[Tuple[str], float],
         thres=1e-3,
         title=r"Haplotype relative frequencies (area $\sim$ p)",
         **kwargs
@@ -20,7 +20,7 @@ def plot_haplotypes(
     """
 
     (haplotypes, ps) = zip(
-        *sorted(filter(lambda xs: xs[1] > thres, p_haplotypes.items()))
+        *sorted(filter(lambda xs: xs[1] > thres, proba_haplotypes.items()))
     )
 
     (fig, ax) = plt.subplots(**kwargs)

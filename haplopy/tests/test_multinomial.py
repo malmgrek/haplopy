@@ -88,11 +88,11 @@ def test_expectation_maximization(kwargs, expected):
 
 
 def test_model_init():
-    p_haplotypes = {("a", "b"): 0.5, ("A", "B"): 0.6}
-    assert_raises(AssertionError, Model, p_haplotypes)
+    proba_haplotypes = {("a", "b"): 0.5, ("A", "B"): 0.6}
+    assert_raises(AssertionError, Model, proba_haplotypes)
 
 
-@pytest.mark.parametrize("p_haplotypes,n_obs,expected", [
+@pytest.mark.parametrize("proba_haplotypes,n_obs,expected", [
     (
         {
             ("A", "B", "C"): 0.24,
@@ -119,17 +119,19 @@ def test_model_init():
         }
     )
 ])
-def test_model(p_haplotypes, n_obs, expected):
-    model = Model(p_haplotypes)
+def test_model(proba_haplotypes, n_obs, expected):
+    model = Model(proba_haplotypes)
     phenotypes = model.random(n_obs)
     model_fitted = model.fit(phenotypes)
     # Assert that essentially nonzero probabilities coincide with expected
-    result = {k: v for (k, v) in model_fitted.p_haplotypes.items() if v >= 1e-8}
+    result = {
+        k: v for (k, v) in model_fitted.proba_haplotypes.items() if v >= 1e-8
+    }
     assert_dicts_almost_equal(result, expected)
     return
 
 
-@pytest.mark.parametrize("p_haplotypes,expected", [
+@pytest.mark.parametrize("proba_haplotypes,expected", [
     # All haplotypes present
     (
         {
@@ -171,8 +173,8 @@ def test_model(p_haplotypes, n_obs, expected):
         ]
     )
 ])
-def test_proba_diplotypes(p_haplotypes, expected):
-    model = Model(p_haplotypes)
+def test_proba_diplotypes(proba_haplotypes, expected):
+    model = Model(proba_haplotypes)
     phenotypes = model.random(10)
     proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
     for (x, e) in zip(proba_diplotypes, expected):
