@@ -25,13 +25,17 @@ def find_parent_haplotypes(phenotypes: List[Tuple[str]]) -> List[Tuple[str]]:
 
     """
     unique_phenotypes = set(phenotypes)
-    return list(reduce(
-        lambda parents, phenotype: parents.union(
-            set(itertools.product(*[set(diplo) for diplo in phenotype]))
-        ),
-        unique_phenotypes,
-        set()
-    ))
+    return sorted(  # Sort to fix output ordering
+        reduce(
+            lambda parents, phenotype: parents.union(
+                set(itertools.product(*[
+                    set(locus) for locus in phenotype
+                ]))
+            ),
+            unique_phenotypes,
+            set()
+        )
+    )
 
 
 def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
@@ -39,7 +43,9 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
 
     """
     factors = list(itertools.product(*[
-        set(diplo) for diplo in phenotype
+        # NOTE: Without sorting the function wouldn't be pure: set of string
+        # doesn't have fixed order.
+        sorted(set(locus)) for locus in phenotype
     ]))
     half = len(factors) // 2
     return (

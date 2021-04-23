@@ -9,13 +9,6 @@ import pytest
 from haplopy import datautils
 
 
-def fix_ordering(x):
-    """For nested twice nested lists/tuples
-
-    """
-    return sorted(map(sorted, x))
-
-
 @pytest.mark.parametrize("phenotypes,expected", [
     (
         [],
@@ -42,6 +35,32 @@ def fix_ordering(x):
         [
             ("a", "b", "C"), ("a", "b", "c"), ("a", "B", "C"), ("a", "B", "c"),
             ("A", "b", "C"), ("A", "b", "c"), ("A", "B", "c"), ("A", "B", "C")
+        ]
+    ),
+    # Before parent haplotype ordering fixes (0.1.0), this example reproduces
+    # an case with varying output ordering.
+    (
+        [
+            ('aa', 'bb', 'cc'),
+            ('Aa', 'Bb', 'Cc'),
+            ('aa', 'bb', 'cc'),
+            ('aa', 'bb', 'cc'),
+            ('Aa', 'Bb', 'Cc'),
+            ('aa', 'bb', 'cc'),
+            ('Aa', 'Bb', 'Cc'),
+            ('Aa', 'Bb', 'Cc'),
+            ('Aa', 'Bb', 'Cc'),
+            ('aa', 'bb', 'cc')
+        ],
+        [
+            ('A', 'B', 'C'),
+            ('A', 'B', 'c'),
+            ('A', 'b', 'C'),
+            ('A', 'b', 'c'),
+            ('a', 'B', 'C'),
+            ('a', 'B', 'c'),
+            ('a', 'b', 'C'),
+            ('a', 'b', 'c')
         ]
     )
 ])
@@ -75,7 +94,8 @@ def test_find_parent_haplotypes(phenotypes, expected):
 ])
 def test_factorize(phenotype, expected):
     res = datautils.factorize(phenotype)
-    assert fix_ordering(res) == fix_ordering(expected)
+    print(res)
+    assert res == expected
     return
 
 
