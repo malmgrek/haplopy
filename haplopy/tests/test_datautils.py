@@ -1,4 +1,8 @@
-"""Unit tests for Datautils module"""
+"""Unit tests for Datautils module
+
+TODO: Test build_diplotype_expansion
+
+"""
 
 from collections import Counter
 
@@ -99,7 +103,11 @@ def test_factorize(phenotype, expected):
     return
 
 
-@pytest.mark.parametrize("diplotype_expansion,parent_haplotypes,expected", [
+def test_build_diplotype_expansion():
+    return
+
+
+@pytest.mark.parametrize("diplotype_expansion,haplotypes,expected", [
     (
         [],
         ["foobar", 1, 2],
@@ -121,7 +129,7 @@ def test_factorize(phenotype, expected):
         ])
     )
 ])
-def test_build_diplotype_matrix(diplotype_expansion, parent_haplotypes, expected):
-    res = datautils.build_diplotype_matrix(diplotype_expansion, parent_haplotypes)
+def test_build_diplotype_matrix(diplotype_expansion, haplotypes, expected):
+    res = datautils.build_diplotype_matrix(haplotypes, diplotype_expansion)
     assert_equal(res.toarray(), expected)
     return

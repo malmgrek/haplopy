@@ -1,5 +1,13 @@
 """Haplotype frequency inference model
 
+TODO: Fix diplotype probability output
+TODO: Explicit phenotypes in multinomial unit tests
+TODO: Batch learning + tests
+      - Should normalize probability in loop or at end?
+TODO: Random generate EM initial values
+TODO: Log-likelihood method
+TODO: Save and load method for model
+
 """
 
 from __future__ import annotations
@@ -32,6 +40,7 @@ def log_multinomial(*ns: int):
 
 def expectation_maximization(
         phenotypes: List[Tuple[str]],
+        proba_haplotypes: Dict[Tuple[str], float]=None,
         # randomize: bool=False,
         max_iter: int=100,
         tol: float=1.0e-12
@@ -49,23 +58,23 @@ def expectation_maximization(
         Stopping criterion with respect to Euclidean norm of
         probabilities vector
 
-    TODO: Random generate initial values and run many optimization threads
-    TODO: Make sure that haplotype order (dict) is not lost
-
     """
 
-
     N = len(phenotypes)
+    if proba_haplotypes is None:
+        haplotypes = datautils.find_parent_haplotypes(phenotypes)
+        Nh = len(haplotypes)
+        probas = np.ones(Nh) / Nh
+    else:
+        (haplotypes, probas) = zip(*proba_haplotypes.items())
 
-    (
-        parent_haplotypes,
-        counter,
-        diplotype_expansion,
-    ) = datautils.describe_phenotypes(phenotypes)
+    (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
+        haplotypes, phenotypes
+    )
 
     # Diplotype count matrix for faster multiplication
     diplotype_matrix = datautils.build_diplotype_matrix(
-        diplotype_expansion, parent_haplotypes
+        haplotypes, diplotype_expansion
     )
 
     #
@@ -109,7 +118,7 @@ def expectation_maximization(
         """
         return 0.5 * diplotype_matrix.dot(Ps)
 
-    Nh = len(parent_haplotypes)
+    Nh = len(haplotypes)
     probas = np.ones(Nh) / Nh
     n_iter = 0
     step = np.inf
@@ -126,7 +135,7 @@ def expectation_maximization(
         )
 
     return (
-        dict(zip(parent_haplotypes, probas)),
+        dict(zip(haplotypes, probas)),
         log_likelihood
     )
 
@@ -178,20 +187,24 @@ class Model():
         (proba_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
         return cls(proba_haplotypes)
 
+    def update(self, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
+        """Batch fit using current probabilities as initial point
+
+        """
+        raise NotImplementedError
+
     def calculate_proba_diplotypes(
             self, phenotypes: Dict[Tuple[str], float]
     ) -> List[Dict[Tuple[str], float]]:
         """Calculate admissible diplotypes' conditional probabilities
 
-        TODO / REVIEW: Should sort by probability each row of the result?
-
         """
 
-        (
-            parent_haplotypes,
-            counter,
-            diplotype_expansion
-        ) = datautils.describe_phenotypes(phenotypes)
+        # FIXME: Get rid of `parent` naming here. It should be just haplotypes
+        parent_haplotypes = datautils.find_parent_haplotypes(phenotypes)
+        (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
+            parent_haplotypes, phenotypes
+        )
 
         # Model's haplotypes might not contain all of the constituent haplotypes
         # of the given set of phenotypes. The probability of such haplotypes

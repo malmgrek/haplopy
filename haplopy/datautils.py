@@ -54,17 +54,15 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
     )
 
 
-def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
+def build_diplotype_expansion(
+        haplotypes: List[Tuple[str]],
+        phenotypes: List[Tuple[str]]
+) -> tuple:
     """Phenotype multiplicity and parent diplotype expansion
 
     Returns
     -------
 
-    parent_haplotypes : List[tuple]
-        All haplotypes that are admissible parents for some phenotype in
-        the dataset.
-    counter : collections.Counter
-        Occurrence count of each unique phenotype in the dataset.
     diplotype_expansion : List[List[tuple]]
         Each item corresponds to the element in `counter` with same index.
         The item is a list of index pairs. Each index points to an element
@@ -74,20 +72,20 @@ def describe_phenotypes(phenotypes: List[Tuple[str]]) -> tuple:
     """
 
     counter = Counter(phenotypes)
-    parent_haplotypes = find_parent_haplotypes(phenotypes)
 
     def factorize_to_index(phenotype):
         return [
-            (parent_haplotypes.index(x), parent_haplotypes.index(y))
+            (haplotypes.index(x), haplotypes.index(y))
             for (x, y) in factorize(phenotype)
         ]
 
-    diplotype_expansion = list(map(factorize_to_index, counter))
+    return (
+        counter,
+        list(map(factorize_to_index, counter))
+    )
 
-    return (parent_haplotypes, counter, diplotype_expansion)
 
-
-def build_diplotype_matrix(diplotype_expansion, parent_haplotypes):
+def build_diplotype_matrix(haplotypes, diplotype_expansion):
     """Haplotype multiplicity in a 'N haplotypes' * 'M diplotypes' matrix
 
     Points out how many times haplotype n is present in diplotype m
@@ -96,7 +94,7 @@ def build_diplotype_matrix(diplotype_expansion, parent_haplotypes):
 
     diplotypes = reduce(lambda x, y: x + y, diplotype_expansion, [])
     matrix = dok_matrix(
-        (len(parent_haplotypes), len(diplotypes)),
+        (len(haplotypes), len(diplotypes)),
         dtype=int
     )
 

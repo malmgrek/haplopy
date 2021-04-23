@@ -131,7 +131,7 @@ def test_model(proba_haplotypes, n_obs, expected):
     return
 
 
-@pytest.mark.parametrize("proba_haplotypes,expected", [
+@pytest.mark.parametrize("proba_haplotypes,phenotypes,expected", [
     # All haplotypes present
     (
         {
@@ -173,7 +173,7 @@ def test_model(proba_haplotypes, n_obs, expected):
         ]
     )
 ])
-def test_proba_diplotypes(proba_haplotypes, expected):
+def test_proba_diplotypes(proba_haplotypes, phenotypes, expected):
     model = Model(proba_haplotypes)
     phenotypes = model.random(10)
     proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
