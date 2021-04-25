@@ -37,12 +37,26 @@ estimate what are the most probable haplotype pair that resulted into the
 phenotype. The main ingredient of solution is the estimation of individual
 haplotype frequencies in the population 
 
+
 ## Installation
 
 The package is found in PyPi.
 
-``` text
+``` shell
 pip install haplopy
+```
+
+Alternatively, install development version manually using Conda
+
+``` shell
+git clone https://github.com/malmgrek/haplopy.git
+# TODO: Pip install requirements and package
+```
+
+To check if the development version installed correctly, run tests with
+
+``` shell
+pytest -v /path/to/haplopy
 ```
 
 ## Examples
@@ -86,7 +100,10 @@ fig = hp.plot.plot_haplotypes(
 
 ![Estimated relative haplotype frequencies](./doc/images/hinton-estimated.png "Estimated")
 
-## To-be-added features
+### Haplotype phasing
 
-- **TODO** Phasing of unphased phenotypes given a haplotype frequency model
-- **TODO** Imputation of missing locus measurements
+TODO
+
+### Imputing missing observations
+
+TODO

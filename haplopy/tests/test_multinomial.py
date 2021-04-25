@@ -1,5 +1,7 @@
 """Tests for the Multinomial module"""
 
+from functools import reduce
+
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal, assert_raises
 import pytest
@@ -82,8 +84,48 @@ def test_log_multinomial(args, expected):
     )
 ])
 def test_expectation_maximization(kwargs, expected):
+    # TODO: Add a trivial case where there is just one possible parent haplotype
     (res, _) = expectation_maximization(**kwargs)
     assert res == expected
+    return
+
+
+@pytest.mark.parametrize("batches,expected", [
+    (
+        [
+            [("AA", "BB"), ("aa", "bb")],
+            [("AA", "BB")]
+        ],
+        {
+            ("A", "B"): 2. / 3,
+            ("a", "b"): 1. / 3
+        }
+    ),
+    (
+        [
+            [("Aa", "Bb", "Cc"), ("aa", "bB", "cc")],
+            [("aa", "bb", "Cc")],
+            # [("Aa", "BB", "CC")]
+        ],
+        None
+    )
+])
+def test_update(batches, expected):
+    phenotypes = reduce(lambda acc, x: acc + x, batches)
+    model = Model.fit(phenotypes)
+    model_batches = reduce(
+        lambda model, batch: model.update(batch),
+        batches[1:],
+        Model.fit(batches[0])
+    )
+    assert_dicts_almost_equal(
+        model.proba_haplotypes,
+        expected
+    )
+    assert_dicts_almost_equal(
+        model_batches.proba_haplotypes,
+        expected
+    )
     return
 
 
