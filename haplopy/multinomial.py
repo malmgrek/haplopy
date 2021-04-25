@@ -41,7 +41,7 @@ def log_multinomial(*ns: int):
 
 def expectation_maximization(
         phenotypes: List[Tuple[str]],
-        proba_parent_haplotypes: Dict[Tuple[str], float]=None,
+        proba_haplotypes: Dict[Tuple[str], float]=None,
         max_iter: int=100,
         tol: float=1.0e-12
 ):
@@ -66,20 +66,20 @@ def expectation_maximization(
 
     # If haplotype probabilities are not given, a uniform initial probability
     # is assumed, and only admissible haplotypes are considered
-    if proba_parent_haplotypes is None:
-        parent_haplotypes = datautils.find_parent_haplotypes(phenotypes)
-        Nh = len(parent_haplotypes)
+    if proba_haplotypes is None:
+        haplotypes = datautils.find_parent_haplotypes(phenotypes)
+        Nh = len(haplotypes)
         probas = np.ones(Nh) / Nh
     else:
-        (parent_haplotypes, probas) = zip(*proba_parent_haplotypes.items())
+        (haplotypes, probas) = zip(*proba_haplotypes.items())
 
     (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
-        parent_haplotypes, phenotypes
+        haplotypes, phenotypes
     )
 
     # Diplotype count matrix for faster multiplication
     diplotype_matrix = datautils.build_diplotype_matrix(
-        parent_haplotypes, diplotype_expansion
+        haplotypes, diplotype_expansion
     )
 
     #
@@ -139,7 +139,7 @@ def expectation_maximization(
         n_iter += 1
 
     return (
-        dict(zip(parent_haplotypes, probas)),
+        dict(zip(haplotypes, probas)),
         log_likelihood
     )
 
@@ -160,15 +160,11 @@ class Model():
 
     """
 
-    def __init__(
-            self,
-            proba_haplotypes: Dict[Tuple[str], float],
-            num_observed: int=0
-    ):
+    def __init__(self, proba_haplotypes: Dict[Tuple[str], float]):
         (haplotypes, probas) = zip(*proba_haplotypes.items())
         assert abs(sum(probas) - 1) < 1e-8, "Probabilities must sum to one"
         self.proba_haplotypes = proba_haplotypes
-        self.num_observed = num_observed
+        self.haplotypes = haplotypes
         return
 
     def random(self, n_obs: int) -> List[Tuple[str]]:
@@ -197,38 +193,7 @@ class Model():
 
         """
         (proba_haplotypes, _) = expectation_maximization(phenotypes, **kwargs)
-        return cls(
-            proba_haplotypes=proba_haplotypes,
-            num_observed=len(phenotypes)
-        )
-
-    def update(self, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
-        """Update model parameters using a batch of data
-
-        """
-
-        def normalize(x: dict):
-            (ks, vs) = zip(*x.items())
-            return dict(zip(ks, np.divide(vs, sum(vs))))
-
-        N = len(phenotypes)
-        N_cum = self.num_observed
-        learning_rate = 1 if N_cum == 0 else N / N_cum
-        old = self.proba_haplotypes
-        (new, _) = expectation_maximization(phenotypes, **kwargs)
-
-        # Combine the two probability dicts
-        proba_haplotypes = normalize({
-            # Scale new probabilities with relative batch size
-            h: old.get(h, 0) + learning_rate * new.get(h, 0)
-            # Preserves order more reliably than set union
-            for h in {**old, **new}
-        })
-
-        return Model(
-            proba_haplotypes=proba_haplotypes,
-            num_observed=N+N_cum
-        )
+        return cls(proba_haplotypes=proba_haplotypes)
 
     def calculate_proba_diplotypes(
             self,
