@@ -14,6 +14,7 @@ phenotype : A sequence of nucleotide pairs with unspecified diplotype
 from collections import Counter
 from functools import reduce
 import itertools
+import re
 from typing import Dict, List, Set, Tuple
 
 import numpy as np
@@ -57,7 +58,7 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
 def build_diplotype_expansion(
         haplotypes: List[Tuple[str]],
         phenotypes: List[Tuple[str]]
-) -> tuple:
+) -> Tuple[Counter, List[List[Tuple[int]]]]:
     """Phenotype multiplicity and parent diplotype expansion
 
     Returns
@@ -85,7 +86,10 @@ def build_diplotype_expansion(
     )
 
 
-def build_diplotype_matrix(haplotypes, diplotype_expansion):
+def build_diplotype_matrix(
+        haplotypes: List[Tuple[str]],
+        diplotype_expansion: List[List[Tuple[int]]]
+):
     """Haplotype multiplicity in a 'N haplotypes' * 'M diplotypes' matrix
 
     Points out how many times haplotype n is present in diplotype m
@@ -104,3 +108,18 @@ def build_diplotype_matrix(haplotypes, diplotype_expansion):
         matrix[diplotype[1], i] += 1
 
     return matrix
+
+
+def fill_diplotypes(
+        diplotypes: List[Tuple[Tuple[str]]],
+        haplotypes: List[Tuple[str]]
+) -> List[Tuple[Tuple[str]]]:
+    """Attempt filling in missing values inside diplotypes
+
+    Uses regular expressions to fill in missing SNPs with admissible values
+    that are present in `haplotypes`.
+
+    Leaves unmatchable patterns as they are.
+
+    """
+    raise NotImplementedError

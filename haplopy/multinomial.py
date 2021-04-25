@@ -1,12 +1,24 @@
 """Haplotype frequency inference model
 
-TODO: Batch learning + tests
-      - Should normalize probability in loop or at end?
-      - Case: parent_haplotypes and given haplotypes partly separate sets
-      - Weighting of incoming contributions
 TODO: Random generate EM initial values
 TODO: Log-likelihood method
 TODO: Save and load method for model
+
+Phenotype imputation thoughts
+-----------------------------
+
+Assume a phenotype x has some missing loci. Mark missing value with "."
+
+1. Factorize x
+2. For each haplotype pair in the factorization,
+   use string matching to "expand" the pair to all feasible pairs.
+3. Filter to unique list of pairs.
+   - Remember that pairs in different order are still same.
+4. Map diplotypes to index pairs
+   - Use NaN-extended `proba_haplotypes` so that presence of unseen haplotypes
+     will result in NaN probability for all of the diplotypes. NOTE: there may
+     also be dots as diplotype filling may have failed
+
 
 """
 
@@ -201,6 +213,11 @@ class Model():
     ) -> List[Dict[Tuple[str], float]]:
         """Calculate admissible diplotypes' conditional probabilities
 
+        TODO / FIXME: One phenotype as input. Makes it more clear to work with.
+                      Sequential application can be done with map.
+                      A big + is that then we can do the missing value
+                      logic within the same method.
+
         """
 
         # We need parent haplotypes to handle cases where admissible diplotypes
@@ -240,7 +257,17 @@ class Model():
         unique_phenotypes = list(counter)
 
         # Retrieve a probability dict for each of the phenotypes
+        # TODO: Revert back to just returning the index pairs
         return [
             lookup_probas[unique_phenotypes.index(phenotype)]
             for phenotype in phenotypes
         ]
+
+    def impute(self, phenotype: Tuple[str]):
+        # TODO: Impute with the most probable values defined by
+        #       `calculate_proba_haplotypes`.
+        #
+        #       - If there are no missing values, returns original phenotype.
+        #       - If cannot be imputed, log warning and return original.
+        #
+        raise NotImplementedError
