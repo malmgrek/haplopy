@@ -3,11 +3,17 @@
 Terminology
 -----------
 
-haplotype : A sequence of nucleotides
+haplotype : A sequence of nucleotides.
+            For example ("a", "b").
 
-diplotype : A pair of haplotypes
+diplotype : A pair of haplotypes.
+            For example (("a", "b"), ("A", "B")).
 
-phenotype : A sequence of nucleotide pairs with unspecified diplotype
+phenotype : A sequence of nucleotide pairs with unspecified diplotype.
+            For example ("Aa", "Bb").
+
+genotype  : An item in the phenotype.
+            For example "Aa".
 
 """
 
@@ -19,6 +25,21 @@ from typing import Dict, List, Set, Tuple
 
 import numpy as np
 from scipy.sparse import dok_matrix
+
+
+def unphase(diplotype):
+    """The most basic operation diplotype to phenotype mapping
+
+    Example
+    -------
+
+    >>> unphase((("A", "T", "G"), ("A", "A", "C")))
+    ("AA", "AT", "GC")
+
+    TODO: Test
+
+    """
+    return tuple("".join(sorted(snp)) for snp in zip(*diplotype))
 
 
 def find_parent_haplotypes(phenotypes: List[Tuple[str]]) -> List[Tuple[str]]:
@@ -70,6 +91,8 @@ def build_diplotype_expansion(
         in `parent_haplotypes`, and the pair stands for an admissible parent
         haplotype couple.
 
+    FIXME: Counter minds phenotype locus ordering!
+
     """
 
     counter = Counter(phenotypes)
@@ -110,16 +133,70 @@ def build_diplotype_matrix(
     return matrix
 
 
-def fill_diplotypes(
-        diplotypes: List[Tuple[Tuple[str]]],
+def find_matching_haplotypes(
+        haplotype: Tuple[str],
+        haplotypes: List[Tuple[str]]
+) -> List[Tuple[str]]:
+    """Find haplotypes that match a given haplotype
+
+    Example
+    -------
+
+    >>> find_matching_haplotypes(
+    ...     ("a", "."),
+    ...     [("a", "b"), ("a", "B"), ("A", "B")]
+    ... )
+    [("a", "b"), ("a", "B")]
+
+    TODO: Test
+
+    """
+    return list(
+        map(
+            tuple,
+            re.findall(
+                "".join(haplotype),
+                " ".join(map(lambda h: "".join(h), haplotypes))
+            )
+        )
+    )
+
+
+def fill_diplotype(
+        diplotype: Tuple[Tuple[str]],
         haplotypes: List[Tuple[str]]
 ) -> List[Tuple[Tuple[str]]]:
-    """Attempt filling in missing values inside diplotypes
+    """Attempt filling in missing values inside a diplotype
 
     Uses regular expressions to fill in missing SNPs with admissible values
     that are present in `haplotypes`.
 
     Leaves unmatchable patterns as they are.
 
+    Example
+    -------
+
+    >>> fill_diplotype(
+    ...     (("A", "."), ("a", "b")),
+    ...     [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")]
+    ... )
+    [(("A", "B"), ("a", "b")), (("A", "b"), ("a", "b"))]
+
+    TODO: Test
+
     """
-    raise NotImplementedError
+
+    def expand(h):
+        e = find_matching_haplotypes(h, haplotypes)
+        return (e if e else [h])
+
+    def add_new(ds, d):
+        return ds + [d] if not (d in ds or d[::-1] in ds) else ds
+
+    return reduce(
+        # Select unique (up to order switch) pairs
+        add_new,
+        # Cartesian product of all matching diplotypes
+        itertools.product(*map(expand, diplotype)),
+        []
+    )

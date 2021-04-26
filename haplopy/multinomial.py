@@ -1,5 +1,6 @@
 """Haplotype frequency inference model
 
+TODO: Flag for NaN-mode or doctor-mode in proba_diplotypes
 TODO: Random generate EM initial values
 TODO: Log-likelihood method
 TODO: Save and load method for model
@@ -18,7 +19,6 @@ Assume a phenotype x has some missing loci. Mark missing value with "."
    - Use NaN-extended `proba_haplotypes` so that presence of unseen haplotypes
      will result in NaN probability for all of the diplotypes. NOTE: there may
      also be dots as diplotype filling may have failed
-
 
 """
 
@@ -66,6 +66,7 @@ def expectation_maximization(
 
     Parameters
     ----------
+
     max_iter : int
         Maximum number of iterations
     tol : float
@@ -190,8 +191,7 @@ class Model():
         ).reshape(n_obs, 2)
         return [
             tuple(
-                "".join(sorted(diplo))
-                for diplo in zip(haplotypes[i], haplotypes[j])
+                "".join(sorted(snp)) for snp in zip(haplotypes[i], haplotypes[j])
             )
             for (i, j) in parent_inds
         ]
@@ -209,65 +209,59 @@ class Model():
 
     def calculate_proba_diplotypes(
             self,
-            phenotypes: Dict[Tuple[str], float]
-    ) -> List[Dict[Tuple[str], float]]:
+            phenotype: Tuple[str],
+            fill_proba=np.NaN,
+    ) -> Dict[Tuple[int], float]:
         """Calculate admissible diplotypes' conditional probabilities
-
-        TODO / FIXME: One phenotype as input. Makes it more clear to work with.
-                      Sequential application can be done with map.
-                      A big + is that then we can do the missing value
-                      logic within the same method.
 
         """
 
-        # We need parent haplotypes to handle cases where admissible diplotypes
-        # contain haplotypes missing from model
-        parent_haplotypes = datautils.find_parent_haplotypes(phenotypes)
-        (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
-            parent_haplotypes, phenotypes
+        # Extended diplotypes where missing data is filled if possible
+        diplotypes = reduce(
+            lambda ds, d: ds + datautils.fill_diplotype(d, self.haplotypes),
+            datautils.factorize(phenotype),
+            []
         )
 
         # Model's haplotypes might not contain all of the constituent haplotypes
         # of the given set of phenotypes. The probability of such haplotypes
-        # will be considered NaN. Note that the implied ambiguity in unit
-        # summability of the NaN-probability distribution doesn't ruin the
+        # will be considered `fill_proba`. Note that the implied ambiguity in
+        # unit summability of the NaN-probability distribution doesn't ruin the
         # calculation of diplotype probabilities (with the existing haplotypes)
         # because each conditional probability is normalized.
         proba_haplotypes = {
-            h: self.proba_haplotypes.get(h, np.NaN) for h in parent_haplotypes
+            h: self.proba_haplotypes.get(h, fill_proba)
+            for diplotype in diplotypes for h in diplotype
         }
-        (haplotypes, probas) = zip(*proba_haplotypes.items())
 
         def calculate(ds):
             return np.array([
-                2 ** (i != j) * probas[i] * probas[j] for (i, j) in ds
+                2 ** (d1 == d2) * proba_haplotypes[d1] * proba_haplotypes[d2]
+                for (d1, d2) in ds
             ])
 
         def normalize(x):
-            return x / x.sum()
+            return x / x.sum() if any(x) else x
 
         def to_dict(ds):
-            keys = [(haplotypes[i], haplotypes[j]) for (i, j) in ds]
-            values = normalize(calculate(ds))
-            return dict(zip(keys, values))
+            return dict(zip(ds, normalize(calculate(ds))))
 
-        # Calculate a dict of diplotype probabilities for each unique
-        # phenotype
-        lookup_probas = list(map(to_dict, diplotype_expansion))
-        unique_phenotypes = list(counter)
+        return to_dict(diplotypes)
 
-        # Retrieve a probability dict for each of the phenotypes
-        # TODO: Revert back to just returning the index pairs
-        return [
-            lookup_probas[unique_phenotypes.index(phenotype)]
-            for phenotype in phenotypes
-        ]
+    def impute(self, phenotype: Tuple[str], **kwargs):
+        """Impute by selecting the most probable diplotype
 
-    def impute(self, phenotype: Tuple[str]):
+        """
         # TODO: Impute with the most probable values defined by
-        #       `calculate_proba_haplotypes`.
+        #       `calculate_proba_diplotypes`.
         #
         #       - If there are no missing values, returns original phenotype.
         #       - If cannot be imputed, log warning and return original.
         #
-        raise NotImplementedError
+        proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
+        most_probable = max(proba_diplotypes, key=proba_diplotypes.get)
+        least_probable = min(proba_diplotypes, key=proba_diplotypes.get)
+        return (
+            datautils.unphase(diplotype) if most_probable > least_probable
+            else phenotype
+        )

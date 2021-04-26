@@ -147,25 +147,15 @@ def test_model(proba_haplotypes, n_obs, expected):
             ('Aa', 'Bb'),
             ('aa', 'bb'),
             ('Aa', 'bb'),
-            ('aa', 'bb'),
             ('Aa', 'BB'),
-            ('Aa', 'Bb'),
-            ('Aa', 'Bb'),
-            ('Aa', 'bb'),
             ('aa', 'Bb'),
-            ('Aa', 'Bb')
         ],
         [
             {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
             {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'b'), ('a', 'b')): 1.0},
-            {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('a', 'B')): 1.0},
-            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
-            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
-            {(('A', 'b'), ('a', 'b')): 1.0},
             {(('a', 'B'), ('a', 'b')): 1.0},
-            {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
         ]
     ),
     # Some haplotypes missing
@@ -178,31 +168,23 @@ def test_model(proba_haplotypes, n_obs, expected):
             ('aa', 'bb'),
             ('Aa', 'Bb'),
             ('AA', 'BB'),
-            ('Aa', 'Bb'),
             ('aa', 'bb'),
             ('AA', 'BB'),
-            ('Aa', 'Bb'),
-            ('aa', 'bb'),
-            ('Aa', 'Bb'),
-            ('Aa', 'Bb')
         ],
         [
             {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
             {(('A', 'B'), ('A', 'B')): 1.0},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
             {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('A', 'B')): 1.0},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
-            {(('a', 'b'), ('a', 'b')): 1.0},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
-            {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
         ]
-    )
+    ),
+    # TODO: Diplotypes zero probability
 ])
 def test_proba_diplotypes(proba_haplotypes, phenotypes, expected):
     model = Model(proba_haplotypes)
-    proba_diplotypes = model.calculate_proba_diplotypes(phenotypes)
-    for (x, e) in zip(proba_diplotypes, expected):
-        assert_dicts_almost_equal(x, e)
+    proba_diplotypes = model.calculate_proba_diplotypes(phenotypes[0])
+    for (phenotype, e) in zip(phenotypes, expected):
+        proba_diplotypes = model.calculate_proba_diplotypes(phenotype)
+        assert_dicts_almost_equal(proba_diplotypes, e)
     return
