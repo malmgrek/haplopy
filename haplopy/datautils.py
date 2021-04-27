@@ -3,6 +3,9 @@
 Terminology
 -----------
 
+TODO / FIXME: Update to new container formalism
+TODO: Make the whole code work with 0's and 1's instead of strings
+
 haplotype : A sequence of nucleotides.
             For example ("a", "b").
 
@@ -17,6 +20,8 @@ genotype  : An item in the phenotype.
 
 """
 
+from __future__ import annotations
+
 from collections import Counter
 from functools import reduce
 import itertools
@@ -27,7 +32,97 @@ import numpy as np
 from scipy.sparse import dok_matrix
 
 
-def unphase(diplotype):
+def match(haplotype: Tuple[str], haplotypes: List[Tuple[str]]) -> List[Tuple[str]]:
+    """Find haplotypes that match a given haplotype
+
+    Example
+    -------
+
+    >>> match( ("a", "."), [("a", "b"), ("a", "B"), ("A", "B")])
+    [("a", "b"), ("a", "B")]
+
+    TODO: Test
+
+    """
+    return list(
+        map(
+            tuple,
+            re.findall(
+                "".join(haplotype),
+                " ".join(map(lambda h: "".join(h), haplotypes))
+            )
+        )
+    )
+
+
+class Phenotype():
+
+    def __init__(self, *genotypes):
+        self.genotypes = tuple(map(lambda g: "".join(sorted(g)), genotypes))
+
+    def __repr__(self):
+        return f"Phenotype{self.genotypes}"
+
+    def __eq__(self, other):
+        return self.genotypes == other.genotypes
+
+    def __hash__(self):
+        return hash(self.genotypes)
+
+    @property
+    def admissible_haplotypes(self) -> List[Tuple[str]]:
+        """List possible source haplotypes
+
+        """
+        return list(itertools.product(*map(set, self.genotypes)))
+
+    def factorize_to_diplotypes(self):
+        haplotypes = self.admissible_haplotypes
+        half = len(haplotypes) // 2
+        return (
+            [Diplotype(haplotypes[0], haplotypes[0])] if half == 0 else
+            [
+                Diplotype(x, y) for (x, y) in zip(
+                    haplotypes[:half], haplotypes[half:][::-1]
+                )
+            ]
+        )
+        return
+
+    def factorize_to_index(self, haplotypes):
+        return [
+            (
+                haplotypes.index(diplotype.haplotypes[0]),
+                haplotypes.index(diplotype.haplotypes[1])
+            )
+            for diplotype in self.factorize_to_diplotypes()
+        ]
+
+
+class Diplotype():
+
+    def __init__(self, x, y):
+        self.haplotypes = tuple(sorted([x, y]))
+
+    def __repr__(self):
+        return f"Diplotype{self.haplotypes}"
+
+    def __eq__(self, other):
+        return self.haplotypes == other.haplotypes
+
+    def __hash__(self):
+        return hash(self.haplotypes)
+
+    def unphase(self) -> Phenotype:
+        return Phenotype(
+            *("".join(snp) for snp in zip(*self.haplotypes))
+        )
+
+    def fill(self, haplotypes):
+        return
+
+
+def unphase(diplotype: Diplotype) -> Phenotype:
     """The most basic operation diplotype to phenotype mapping
 
     Example
@@ -76,6 +171,23 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
     )
 
 
+#
+# Helpers for the multinomial EM algorithm
+#
+
+
+def _build_diplotype_representation(haplotypes, phenotypes: List[Phenotype]):
+    counter = Counter(phenotypes)
+    return (
+        counter,
+        [phenotype.factorize_to_index(haplotypes) for phenotype in counter]
+    )
+
+
+def _build_diplotype_matrix(haplotypes, diplotype_representation):
+    return
+
+
 def build_diplotype_expansion(
         haplotypes: List[Tuple[str]],
         phenotypes: List[Tuple[str]]
@@ -92,6 +204,9 @@ def build_diplotype_expansion(
         haplotype couple.
 
     FIXME: Counter minds phenotype locus ordering!
+
+    TODO: Use this, but change Model.proba_haplotypes to Model.probas and
+          Model.haplotypes
 
     """
 
