@@ -1,7 +1,5 @@
 """Unit tests for Datautils module
 
-TODO: Test build_diplotype_expansion
-
 """
 
 from collections import Counter
@@ -68,8 +66,8 @@ from haplopy import datautils
         ]
     )
 ])
-def test_find_parent_haplotypes(phenotypes, expected):
-    res = datautils.find_parent_haplotypes(phenotypes)
+def test_find_admissible_haplotypes(phenotypes, expected):
+    res = datautils.find_admissible_haplotypes(phenotypes)
     assert set(res) == set(expected)  # Ordering doesn't matter
     return
 
@@ -103,11 +101,7 @@ def test_factorize(phenotype, expected):
     return
 
 
-def test_build_diplotype_expansion():
-    return
-
-
-@pytest.mark.parametrize("diplotype_expansion,haplotypes,expected", [
+@pytest.mark.parametrize("diplotype_representation,haplotypes,expected", [
     (
         [],
         ["foobar", 1, 2],
@@ -129,7 +123,27 @@ def test_build_diplotype_expansion():
         ])
     )
 ])
-def test_build_diplotype_matrix(diplotype_expansion, haplotypes, expected):
-    res = datautils.build_diplotype_matrix(haplotypes, diplotype_expansion)
+def test_build_diplotype_matrix(diplotype_representation, haplotypes, expected):
+    res = datautils.build_diplotype_matrix(diplotype_representation, haplotypes)
     assert_equal(res.toarray(), expected)
     return
+
+
+def test_match():
+    raise NotImplementedError
+
+
+def test_unphase():
+    raise NotImplementedError
+
+
+def test_fill():
+    raise NotImplementedError
+
+
+def test_build_diplotype_representation():
+    raise NotImplementedError
+
+
+def test_count_distinct():
+    raise NotImplementedError

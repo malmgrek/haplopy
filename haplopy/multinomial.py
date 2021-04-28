@@ -1,5 +1,6 @@
 """Haplotype frequency inference model
 
+TODO: Remove excess type hints
 TODO: Flag for NaN-mode or doctor-mode in proba_diplotypes
 TODO: Random generate EM initial values
 TODO: Log-likelihood method
@@ -80,19 +81,20 @@ def expectation_maximization(
     # If haplotype probabilities are not given, a uniform initial probability
     # is assumed, and only admissible haplotypes are considered
     if proba_haplotypes is None:
-        haplotypes = datautils.find_parent_haplotypes(phenotypes)
+        haplotypes = datautils.find_admissible_haplotypes(phenotypes)
         Nh = len(haplotypes)
         probas = np.ones(Nh) / Nh
     else:
         (haplotypes, probas) = zip(*proba_haplotypes.items())
 
-    (counter, diplotype_expansion) = datautils.build_diplotype_expansion(
-        haplotypes, phenotypes
+    counter = datautils.count_distinct(phenotypes)
+    diplotype_representation = datautils.build_diplotype_representation(
+        counter, haplotypes
     )
 
     # Diplotype count matrix for faster multiplication
     diplotype_matrix = datautils.build_diplotype_matrix(
-        haplotypes, diplotype_expansion
+        diplotype_representation, haplotypes
     )
 
     #
@@ -115,12 +117,12 @@ def expectation_maximization(
 
         """
 
-        def calculate(ds):
+        def calculate(inds):
             return np.array([
-                2 ** (i != j) * probas[i] * probas[j] for (i, j) in ds
+                2 ** (i != j) * probas[i] * probas[j] for (i, j) in inds
             ])
 
-        Ps_raws = [calculate(ds) for ds in diplotype_expansion]
+        Ps_raws = [calculate(inds) for inds in diplotype_representation]
         Ps_units = np.hstack([
             Ps * n / Ps.sum() / N for (Ps, n) in zip(Ps_raws, counter.values())
         ])
@@ -171,6 +173,8 @@ class Model():
         phenotypes = model.random(10)
         model_est = hp.multinomial.Model.fit(phenotypes)
 
+    TODO: probas and haplotypes as separate attributes
+
     """
 
     def __init__(self, proba_haplotypes: Dict[Tuple[str], float]):
@@ -197,7 +201,7 @@ class Model():
         ]
 
     @classmethod
-    def fit(cls, phenotypes: Dict[Tuple[str], float], **kwargs) -> Model:
+    def fit(cls, phenotypes: Dict[Tuple[str]], **kwargs) -> Model:
         """Fit maximum likelihood haplotype probabilities using EM algorithm
 
         Implemented as a classmethod so that we can use given phenotypes
@@ -218,7 +222,7 @@ class Model():
 
         # Extended diplotypes where missing data is filled if possible
         diplotypes = reduce(
-            lambda ds, d: ds + datautils.fill_diplotype(d, self.haplotypes),
+            lambda ds, d: ds + datautils.fill(d, self.haplotypes),
             datautils.factorize(phenotype),
             []
         )

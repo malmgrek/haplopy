@@ -122,7 +122,7 @@ def test_model_init():
         }
     )
 ])
-def test_model(proba_haplotypes, n_obs, expected):
+def test_model_fit(proba_haplotypes, n_obs, expected):
     model = Model(proba_haplotypes)
     phenotypes = model.random(n_obs)
     model_fitted = model.fit(phenotypes)
@@ -132,6 +132,13 @@ def test_model(proba_haplotypes, n_obs, expected):
     }
     assert_dicts_almost_equal(result, expected)
     return
+
+
+def test_model_impute():
+    # If no missing values, returns original phenotype
+    # If cannot be imputed, returns original phenotype
+    # Ignorant of genotype ordering
+    raise NotImplementedError
 
 
 @pytest.mark.parametrize("proba_haplotypes,phenotypes,expected", [
