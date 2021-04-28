@@ -153,10 +153,9 @@ def expectation_maximization(
         )
         n_iter += 1
 
-    return (
-        dict(zip(haplotypes, probas)),
-        log_likelihood
-    )
+    proba_haplotypes = dict(zip(haplotypes, probas))
+
+    return (proba_haplotypes, log_likelihood)
 
 
 class Model():
@@ -173,15 +172,12 @@ class Model():
         phenotypes = model.random(10)
         model_est = hp.multinomial.Model.fit(phenotypes)
 
-    TODO: probas and haplotypes as separate attributes
-
     """
 
     def __init__(self, proba_haplotypes: Dict[Tuple[str], float]):
         (haplotypes, probas) = zip(*proba_haplotypes.items())
         assert abs(sum(probas) - 1) < 1e-8, "Probabilities must sum to one"
         self.proba_haplotypes = proba_haplotypes
-        self.haplotypes = haplotypes
         return
 
     def random(self, n_obs: int) -> List[Tuple[str]]:
@@ -222,7 +218,7 @@ class Model():
 
         # Extended diplotypes where missing data is filled if possible
         diplotypes = reduce(
-            lambda ds, d: ds + datautils.fill(d, self.haplotypes),
+            lambda ds, d: ds + datautils.fill(d, self.proba_haplotypes),
             datautils.factorize(phenotype),
             []
         )
@@ -256,12 +252,6 @@ class Model():
         """Impute by selecting the most probable diplotype
 
         """
-        # TODO: Impute with the most probable values defined by
-        #       `calculate_proba_diplotypes`.
-        #
-        #       - If there are no missing values, returns original phenotype.
-        #       - If cannot be imputed, log warning and return original.
-        #
         proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
         most_probable = max(proba_diplotypes, key=proba_diplotypes.get)
         least_probable = min(proba_diplotypes, key=proba_diplotypes.get)
