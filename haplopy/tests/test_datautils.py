@@ -129,21 +129,142 @@ def test_build_diplotype_matrix(diplotype_representation, haplotypes, expected):
     return
 
 
-def test_match():
-    raise NotImplementedError
+@pytest.mark.parametrize("haplotype,haplotypes,expected", [
+    # Nothing to replace, present in reference list
+    (
+        ("A", "B"),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [("A", "B")]
+    ),
+    # Nothing to replace, not present in reference list
+    (
+        ("x", "y"),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        []
+    ),
+    # Nothing to replace, empty reference list
+    (
+        ("A", "B"),
+        [],
+        []
+    ),
+    (
+        (".", "b"),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [("A", "b"), ("a", "b")]
+    ),
+    # A complete wildcard finds all
+    (
+
+        (".", "."),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")]
+    )
+])
+def test_match(haplotype, haplotypes, expected):
+    res = datautils.match(haplotype, haplotypes)
+    assert res == expected
+    return
 
 
-def test_unphase():
-    raise NotImplementedError
+@pytest.mark.parametrize("haplotype", [
+    ("A", "*"),
+    ("A", "ö"),
+    ("9", ",")
+])
+def test_match_invalid(haplotype):
+    with pytest.raises(ValueError):
+        datautils.match(haplotype, [("a", "b")])
+    return
 
 
-def test_fill():
-    raise NotImplementedError
+@pytest.mark.parametrize("diplotype,expected", [
+    ((("A",), ("B")), ("AB",)),
+    ((("A", "B"), ("A", "B")), ("AA", "BB")),
+    ((("A", "B", "C"), ("a", "b", "c")), ("Aa", "Bb", "Cc")),
+    ((("a", "b", "c"), ("A", "B", "C")), ("Aa", "Bb", "Cc")),
+])
+def test_unphase(diplotype, expected):
+    res = datautils.unphase(diplotype)
+    assert res == expected
+    return
 
 
-def test_build_diplotype_representation():
-    raise NotImplementedError
+@pytest.mark.parametrize("diplotype,haplotypes,expected", [
+    (
+        (("A", "."), ("a", "b")),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [(("A", "B"), ("a", "b")), (("A", "b"), ("a", "b"))]
+    ),
+    # A complete wildcard finds all
+    (
+        ((".", "."), (".", ".")),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [
+            (('A', 'B'), ('A', 'B')),
+            (('A', 'B'), ('A', 'b')),
+            (('A', 'B'), ('a', 'B')),
+            (('A', 'B'), ('a', 'b')),
+            (('A', 'b'), ('A', 'b')),
+            (('A', 'b'), ('a', 'B')),
+            (('A', 'b'), ('a', 'b')),
+            (('a', 'B'), ('a', 'B')),
+            (('a', 'B'), ('a', 'b')),
+            (('a', 'b'), ('a', 'b')),
+        ]
+    ),
+    # Unmatched come as they are
+    (
+        (("x", "y"), (".", "z")),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [(("x", "y"), (".", "z"))]
+    ),
+    (
+        (("a", "b"), ("A", "B")),
+        [("x", "y")],
+        [(("a", "b"), ("A", "B"))]
+    ),
+    (
+        (("a", "b"), ("A", "B")),
+        [],
+        [(("a", "b"), ("A", "B"))]
+    )
+])
+def test_fill(diplotype, haplotypes, expected):
+    res = datautils.fill(diplotype, haplotypes)
+    assert res == expected
+    return
 
 
-def test_count_distinct():
-    raise NotImplementedError
+@pytest.mark.parametrize("counter,haplotypes,expected", [
+    (
+        Counter({("Aa", "Bb"): 2, ("AA", "BB"): 1}),
+        [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")],
+        [[(0, 3), (1, 2)], [(0, 0)]]
+    )
+    # Empty haplotypes
+])
+def test_build_diplotype_representation(counter, haplotypes, expected):
+    res = datautils.build_diplotype_representation(counter, haplotypes)
+    assert res == expected
+    return
+
+
+@pytest.mark.parametrize("phenotypes,expected", [
+    (
+        [],
+        Counter()
+    ),
+    # Genotype permutation invariance
+    (
+        [("Aa", "Bb"), ("aA", "bB")],
+        Counter({("Aa", "Bb"): 2})
+    ),
+    (
+        [("AA", "BB", "CC"), ("Aa", "Bb", "cC")],
+        Counter({("AA", "BB", "CC"): 1, ("Aa", "Bb", "Cc"): 1})
+    )
+])
+def test_count_distinct(phenotypes, expected):
+    assert datautils.count_distinct(phenotypes) == expected
+    return

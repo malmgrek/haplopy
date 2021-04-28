@@ -42,15 +42,31 @@ def match(haplotype, haplotypes) -> List[Tuple[str]]:
     [("a", "b"), ("a", "B")]
 
     """
-    return list(
-        map(
-            tuple,
-            re.findall(
-                "".join(haplotype),
-                " ".join(map(lambda h: "".join(h), haplotypes))
+
+
+    def validate(s: str):
+        valid = bool(re.compile("[a-zA-Z0-9\.]{2}").match(s))
+        if not valid:
+            raise ValueError(
+                (
+                    "Illegal characters in {} for pattern matching."
+                    "Only a-z, A-Z and . are allowed."
+                ).format(tuple(s))
             )
+        return s
+
+
+    return list(map(
+        # Transform joint 2-strings back to tuples
+        tuple,
+        # Filter out 2-strings that don't match with the pattern
+        filter(
+            # Transform test haplotype into a regex pattern
+            re.compile(validate("".join(haplotype))).match,
+            # Join reference haplotypes into a list of 2-strings
+            map(lambda h: "".join(h), haplotypes)
         )
-    )
+    ))
 
 
 #
