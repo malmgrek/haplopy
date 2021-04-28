@@ -27,22 +27,81 @@ import numpy as np
 from scipy.sparse import dok_matrix
 
 
-def unphase(diplotype):
-    """The most basic operation diplotype to phenotype mapping
+class multiset():
+
+    def __init__(self, xs):
+        self.items = tuple(sorted(xs))
+
+    def __eq__(self, other):
+        return self.items == other.items
+
+    def __hash__(self):
+        return hash(self.items)
+
+    def __repr__(self):
+        return "multiset({{{0}}})".format(", ".join(map(str, self.items)))
+
+    def __iter__(self):
+        yield from self.items
+
+
+#
+# Haplotypes
+#
+
+
+def match(haplotype: Tuple[str], haplotypes: List[Tuple[str]]) -> List[Tuple[str]]:
+    """Find haplotypes that match a given haplotype
 
     Example
     -------
 
-    >>> unphase((("A", "T", "G"), ("A", "A", "C")))
-    ("AA", "AT", "GC")
+    >>> find_matching_haplotypes(
+    ...     ("a", "."),
+    ...     [("a", "b"), ("a", "B"), ("A", "B")]
+    ... )
+    [("a", "b"), ("a", "B")]
 
     TODO: Test
 
     """
-    return tuple("".join(sorted(snp)) for snp in zip(*diplotype))
+    return list(
+        map(
+            tuple,
+            re.findall(
+                "".join(haplotype),
+                " ".join(map(lambda h: "".join(h), haplotypes))
+            )
+        )
+    )
 
 
-def find_parent_haplotypes(phenotypes: List[Tuple[str]]) -> List[Tuple[str]]:
+#
+# Phenotypes
+#
+
+
+def Phenotype(*args):
+    return tuple(map(frozenset, args))
+
+
+def find_admissible_haplotypes(phenotype: Phenotype):
+    return frozenset(itertools.product(*phenotype))
+
+
+def factorize_to_diplotypes(phenotype: Phenotype):
+    factors = list(itertools.product(*phenotype))
+    half = len(factors) // 2
+    return frozenset(
+        [Diplotype(factors[0], factors[0])] if half == 0 else
+        [Diplotype(x, y) for (x, y) in zip(factors[:half], factors[half:][::-1])]
+    )
+
+
+# TODO: Reduced version of find_admissible_haplotypes
+
+
+def find_parent_haplotypes(phenotypes):
     """List parent haplotypes
 
     """
@@ -76,22 +135,89 @@ def factorize(phenotype: Tuple[str]) -> List[Tuple[str]]:
     )
 
 
+#
+# Diplotypes
+#
+
+
+def Diplotype(x, y):
+    return multiset([x, y])
+
+
+def unphase(diplotype):
+    """The most basic operation diplotype to phenotype mapping
+
+    Example
+    -------
+
+    >>> unphase((("A", "T", "G"), ("A", "A", "C")))
+    ("AA", "AT", "GC")
+
+    TODO: Test
+
+    """
+    return Phenotype(*zip(*diplotype))
+
+
+def fill(diplotype: Diplotype, haplotypes: List[Tuple[str]]) -> List[Diplotype]:
+    """Attempt filling in missing values inside a diplotype
+
+    Uses regular expressions to fill in missing SNPs with admissible values
+    that are present in `haplotypes`.
+
+    Leaves unmatchable patterns as they are.
+
+    Example
+    -------
+
+    >>> fill(
+    ...     Diplotype(("A", "."), ("a", "b")),
+    ...     [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")]
+    ... )
+    [Diplotype(("A", "B"), ("a", "b")), Diplotype(("A", "b"), ("a", "b"))]
+
+    TODO: Test
+
+    """
+
+    def expand(h):
+        e = match(h, haplotypes)
+        return (e if e else [h])
+
+    def add_new(ds, d):
+        return ds + [d] if not (d in ds or d[::-1] in ds) else ds
+
+    return reduce(
+        # Select unique (up to order switch) pairs
+        add_new,
+        # Cartesian product of all matching diplotypes
+        itertools.product(*map(expand, diplotype)),
+        []
+    )
+
+
+#
+# Model-fitting helpers
+#
+
+
 def build_diplotype_expansion(
         haplotypes: List[Tuple[str]],
-        phenotypes: List[Tuple[str]]
-) -> Tuple[Counter, List[List[Tuple[int]]]]:
+        phenotypes: List[Phenotype]  # TODO: Replace with phenotype_counter
+) -> Tuple[Counter, List[List[multiset]]]:
     """Phenotype multiplicity and parent diplotype expansion
+
+    Helps building data structures in multinomial model EM fitting
 
     Returns
     -------
 
+    counter : Counter
     diplotype_expansion : List[List[tuple]]
         Each item corresponds to the element in `counter` with same index.
         The item is a list of index pairs. Each index points to an element
         in `parent_haplotypes`, and the pair stands for an admissible parent
         haplotype couple.
-
-    FIXME: Counter minds phenotype locus ordering!
 
     """
 
@@ -111,7 +237,7 @@ def build_diplotype_expansion(
 
 def build_diplotype_matrix(
         haplotypes: List[Tuple[str]],
-        diplotype_expansion: List[List[Tuple[int]]]
+        diplotype_expansion: List[List[multiset]]
 ):
     """Haplotype multiplicity in a 'N haplotypes' * 'M diplotypes' matrix
 
@@ -133,70 +259,5 @@ def build_diplotype_matrix(
     return matrix
 
 
-def find_matching_haplotypes(
-        haplotype: Tuple[str],
-        haplotypes: List[Tuple[str]]
-) -> List[Tuple[str]]:
-    """Find haplotypes that match a given haplotype
-
-    Example
-    -------
-
-    >>> find_matching_haplotypes(
-    ...     ("a", "."),
-    ...     [("a", "b"), ("a", "B"), ("A", "B")]
-    ... )
-    [("a", "b"), ("a", "B")]
-
-    TODO: Test
-
-    """
-    return list(
-        map(
-            tuple,
-            re.findall(
-                "".join(haplotype),
-                " ".join(map(lambda h: "".join(h), haplotypes))
-            )
-        )
-    )
 
 
-def fill_diplotype(
-        diplotype: Tuple[Tuple[str]],
-        haplotypes: List[Tuple[str]]
-) -> List[Tuple[Tuple[str]]]:
-    """Attempt filling in missing values inside a diplotype
-
-    Uses regular expressions to fill in missing SNPs with admissible values
-    that are present in `haplotypes`.
-
-    Leaves unmatchable patterns as they are.
-
-    Example
-    -------
-
-    >>> fill_diplotype(
-    ...     (("A", "."), ("a", "b")),
-    ...     [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")]
-    ... )
-    [(("A", "B"), ("a", "b")), (("A", "b"), ("a", "b"))]
-
-    TODO: Test
-
-    """
-
-    def expand(h):
-        e = find_matching_haplotypes(h, haplotypes)
-        return (e if e else [h])
-
-    def add_new(ds, d):
-        return ds + [d] if not (d in ds or d[::-1] in ds) else ds
-
-    return reduce(
-        # Select unique (up to order switch) pairs
-        add_new,
-        # Cartesian product of all matching diplotypes
-        itertools.product(*map(expand, diplotype)),
-        []
-    )
