@@ -118,7 +118,9 @@ def test_model_init():
         {
             ("A", "B", "C"): 0.2370,
             ("A", "b", "C"): 0.1045,
-            ("a", "b", "c"): 0.6585
+
+
+   ("a", "b", "c"): 0.6585
         }
     )
 ])
@@ -134,11 +136,48 @@ def test_model_fit(proba_haplotypes, n_obs, expected):
     return
 
 
-def test_model_impute():
-    # If no missing values, returns original phenotype
-    # If cannot be imputed, returns original phenotype
-    # Ignorant of genotype ordering
-    raise NotImplementedError
+@pytest.mark.parametrize("phenotype,fill_proba,expected", [
+    # Leave complete phenotype unchanged
+    (
+        ("Aa", "Bb"),
+        np.NaN,
+        ("Aa", "Bb")
+    ),
+    # Unseen phenotype, remains unchanged
+    (
+        ("Aa", "xy"),
+        np.NaN,
+        ("Aa", "xy")
+    ),
+    (
+        ("A.", "bB"),
+        np.NaN,
+        ("Aa", "Bb")
+    ),
+    (
+        ("..", ".."),
+        np.NaN,
+        ("Aa", "BB")
+    ),
+    # Ignorant of genotype permutations
+    (
+        ("aA", ".."),
+        np.NaN,
+        ("Aa", "BB")
+    )
+])
+def test_model_impute(phenotype, fill_proba, expected):
+    # All options equally probable?
+    proba_haplotypes = {
+        ("A", "B"): 0.4,
+        ("a", "B"): 0.3,
+        ("A", "b"): 0.2,
+        ("a", "b"): 0.1
+    }
+    model = Model(proba_haplotypes)
+    res = model.impute(phenotype, fill_proba=fill_proba)
+    assert res == expected
+    return
 
 
 @pytest.mark.parametrize("proba_haplotypes,phenotypes,expected", [
@@ -165,7 +204,7 @@ def test_model_impute():
             {(('a', 'B'), ('a', 'b')): 1.0},
         ]
     ),
-    # Some haplotypes missing
+    # Some haplotypes missing from model
     (
         {
             ("A", "B"): 0.5,
@@ -186,7 +225,55 @@ def test_model_impute():
             {(('A', 'B'), ('A', 'B')): 1.0},
         ]
     ),
-    # TODO: Diplotypes zero probability
+    # Diplotypes zero probability
+    (
+        {
+            ("A", "B"): 0,
+            ("a", "B"): 0.5,
+            ("A", "b"): 0.5,
+            ("a", "b"): 0
+        },
+        [
+            ('aa', 'bb'),
+            ("AA", "BB")
+        ],
+        [
+            {(('a', 'b'), ('a', 'b')): 0},
+            {(('A', 'B'), ('A', 'B')): 0},
+        ]
+    ),
+    # Missing observations
+    (
+        {
+            ("A", "B"): 0.1,
+            ("a", "B"): 0.2,
+            ("A", "b"): 0.3,
+            ("a", "b"): 0.4
+        },
+        [
+            ('A.', 'BB'),
+            # Same but different order
+            (".A", "BB"),
+            ("..", "bb"),
+            ("a.", ".b")
+        ],
+        [
+            {(('A', 'B'), ('A', 'B')): 0.2, (('A', 'B'), ('a', 'B')): 0.8},
+            {(('A', 'B'), ('A', 'B')): 0.2, (('A', 'B'), ('a', 'B')): 0.8},
+            {
+                (('A', 'b'), ('A', 'b')): .3**2/(.3**2+2*.3*.4+.4**2),
+                (('A', 'b'), ('a', 'b')): 2*.3*.4/(.3**2+2*.3*.4+.4**2),
+                (('a', 'b'), ('a', 'b')): .4**2/(.3**2+2*.3*.4+.4**2)
+            },
+            {
+                (('A', 'B'), ('a', 'b')): 0.10526315,
+                (('A', 'b'), ('a', 'B')): 0.15789473,
+                (('A', 'b'), ('a', 'b')): 0.31578947,
+                (('a', 'B'), ('a', 'b')): 0.21052631,
+                (('a', 'b'), ('a', 'b')): 0.21052631,
+            }
+        ]
+    ),
 ])
 def test_proba_diplotypes(proba_haplotypes, phenotypes, expected):
     model = Model(proba_haplotypes)

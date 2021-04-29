@@ -217,11 +217,14 @@ class Model():
         """
 
         # Extended diplotypes where missing data is filled if possible
-        diplotypes = reduce(
-            lambda ds, d: ds + datautils.fill(d, self.proba_haplotypes),
-            datautils.factorize(phenotype),
-            []
-        )
+        #
+        # At the moment we have decided not to implement a tailored data type
+        # for diplotypes, we need to use this complicated and messy composite
+        # function to try to ensure there are no duplicate permutations in the
+        # filled list. If we had a hashable and symmetric data type for
+        # diplotypes, we could just use set (or frozenset) to trivially reduce
+        # to unique diplotypes.
+        diplotypes = datautils.factorize_fill(phenotype, self.proba_haplotypes)
 
         # Model's haplotypes might not contain all of the constituent haplotypes
         # of the given set of phenotypes. The probability of such haplotypes
@@ -236,8 +239,8 @@ class Model():
 
         def calculate(ds):
             return np.array([
-                2 ** (d1 == d2) * proba_haplotypes[d1] * proba_haplotypes[d2]
-                for (d1, d2) in ds
+                2 ** (h1 != h2) * proba_haplotypes[h1] * proba_haplotypes[h2]
+                for (h1, h2) in ds
             ])
 
         def normalize(x):
@@ -253,9 +256,26 @@ class Model():
 
         """
         proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
-        most_probable = max(proba_diplotypes, key=proba_diplotypes.get)
-        least_probable = min(proba_diplotypes, key=proba_diplotypes.get)
+
+        def aggregate(acc, x):
+            (diplotype, proba) = x
+            phenotype = datautils.unphase(diplotype)
+            return (
+                {**acc, **{phenotype: proba}} if phenotype not in acc
+                else {**acc, **{phenotype: proba + acc[phenotype]}}
+            )
+
+        # There can be multiple distinct diplotypes that result into the same
+        # phenotype so the probabilities must be summed
+
+        # FIXME: This is not the correct way to find argmax of dict
+        proba_phenotypes = reduce(aggregate, proba_diplotypes.items(), dict())
+        most_probable = max(proba_phenotypes, key=proba_phenotypes.get)
         return (
-            datautils.unphase(diplotype) if most_probable > least_probable
+            most_probable
+            # FIXME: What if there is just one truly different option
+            #        than phenotype
+            # FIXME: All options are NaN probability
+            if proba_phenotypes[most_probable] > proba_phenotypes[least_probable]
             else phenotype
         )

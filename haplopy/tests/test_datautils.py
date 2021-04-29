@@ -268,3 +268,27 @@ def test_build_diplotype_representation(counter, haplotypes, expected):
 def test_count_distinct(phenotypes, expected):
     assert datautils.count_distinct(phenotypes) == expected
     return
+
+
+@pytest.mark.parametrize("phenotype,haplotypes,expected", [
+    (
+        ("a.", ".b"),
+        [("A", "B"), ("a", "B"), ("A", "b"), ("a", "b")],
+        [
+            (('A', 'B'), ('a', 'b')),
+            (('A', 'b'), ('a', 'B')),
+            (('A', 'b'), ('a', 'b')),
+            (('a', 'B'), ('a', 'b')),
+            (('a', 'b'), ('a', 'b')),
+        ]
+    ),
+    (
+        ("aA", "Bb"),
+        [("A", "B"), ("a", "B"), ("A", "b"), ("a", "b")],
+        [(("A", "B"), ("a", "b")), (("A", "b"), ("a", "B"))]
+    )
+])
+def test_factorize_fill(phenotype, haplotypes, expected):
+    res = datautils.factorize_fill(phenotype, haplotypes)
+    assert res == expected
+    return

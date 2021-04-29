@@ -141,6 +141,9 @@ def count_distinct(phenotypes):
 
     """
 
+    # At the moment we have decided not to implement a tailored data type
+    # for phenotypes, we need to resort to hacky sorting and string joins
+    # to avoid misclassifying equivalent phenotypes with permuted genotypes.
     def sort_genotypes(phenotype):
         return tuple("".join(sorted(g)) for g in phenotype)
 
@@ -161,6 +164,24 @@ def factorize(phenotype) -> List[Tuple[str]]:
         [(factors[0], factors[0])] if half == 0 else
         list(zip(factors[:half], factors[half:][::-1]))
     )
+
+
+def factorize_fill(phenotype, haplotypes) -> List[Tuple[Tuple[str]]]:
+    """Factorize with missing value filling
+
+    """
+    # NOTE: Without sorting the function wouldn't be pure: set of string
+    # doesn't have fixed order.
+    return sorted(reduce(
+        lambda ds, d: ds.union(
+            map(
+                lambda x: tuple(sorted(x)),
+                fill(d, haplotypes)
+            )
+        ),
+        factorize(phenotype),
+        set()
+    ))
 
 
 def find_admissible_haplotypes(counter) -> List[Tuple[str]]:
