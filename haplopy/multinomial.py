@@ -1,25 +1,8 @@
-"""Haplotype frequency inference model
+"""Multinomial distribution haplotype frequency inference model
 
-TODO: Remove excess type hints
-TODO: Flag for NaN-mode or doctor-mode in proba_diplotypes
 TODO: Random generate EM initial values
 TODO: Log-likelihood method
 TODO: Save and load method for model
-
-Phenotype imputation thoughts
------------------------------
-
-Assume a phenotype x has some missing loci. Mark missing value with "."
-
-1. Factorize x
-2. For each haplotype pair in the factorization,
-   use string matching to "expand" the pair to all feasible pairs.
-3. Filter to unique list of pairs.
-   - Remember that pairs in different order are still same.
-4. Map diplotypes to index pairs
-   - Use NaN-extended `proba_haplotypes` so that presence of unseen haplotypes
-     will result in NaN probability for all of the diplotypes. NOTE: there may
-     also be dots as diplotype filling may have failed
 
 """
 
@@ -68,11 +51,14 @@ def expectation_maximization(
     Parameters
     ----------
 
+    phenotypes : List[Tuple[str]]
+        Observation data; list of phenotypes
+    proba_haplotypes : Dict[Tuple[str], float]
+        Initial haplotype probabilities
     max_iter : int
         Maximum number of iterations
     tol : float
-        Stopping criterion with respect to Euclidean norm of
-        probabilities vector
+        Stopping criterion with respect to Euclidean norm of probabilities vector
 
     """
 
@@ -197,7 +183,7 @@ class Model():
         ]
 
     @classmethod
-    def fit(cls, phenotypes: Dict[Tuple[str]], **kwargs) -> Model:
+    def fit(cls, phenotypes: Tuple[str], **kwargs) -> Model:
         """Fit maximum likelihood haplotype probabilities using EM algorithm
 
         Implemented as a classmethod so that we can use given phenotypes
@@ -210,7 +196,7 @@ class Model():
     def calculate_proba_diplotypes(
             self,
             phenotype: Tuple[str],
-            fill_proba=np.NaN,
+            fill_proba: float=np.NaN,
     ) -> Dict[Tuple[int], float]:
         """Calculate admissible diplotypes' conditional probabilities
 
@@ -251,7 +237,7 @@ class Model():
 
         return to_dict(diplotypes)
 
-    def calculate_proba_phenotypes(self, phenotype, **kwargs):
+    def calculate_proba_phenotypes(self, phenotype: Tuple[str], **kwargs):
         """Compute probabilities of different options that fill a given phenotype
 
         """
