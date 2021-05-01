@@ -20,11 +20,39 @@ genotype  : An item in the phenotype.
 from collections import Counter
 from functools import reduce
 import itertools
+from operator import itemgetter
 import re
 from typing import Dict, List, Set, Tuple
 
 import numpy as np
 from scipy.sparse import dok_matrix
+
+
+#
+# Generic
+#
+
+
+def compose2(f, g):
+    return lambda *args, **kwargs: f(g(*args, **kwargs))
+
+
+def dmax(x: dict):
+    """Dictionary's (argmax, max) key-value pair
+
+    Note that this is a pure function. From Python 3.7 onwards, a dictionary is
+    ordered by construction. Thus, in case of multiple keys of same numeric
+    value, the result only depends on inputs initial order.
+
+    """
+    return max(
+        filter(
+            compose2(np.isfinite, itemgetter(1)),
+            x.items()
+        ),
+        key=itemgetter(1),
+        default=(None, None)
+    )
 
 
 #

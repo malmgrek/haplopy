@@ -167,7 +167,7 @@ def test_model_fit(proba_haplotypes, n_obs, expected):
     )
 ])
 def test_model_impute(phenotype, fill_proba, expected):
-    # All options equally probable?
+    # TODO: All options equally probable
     proba_haplotypes = {
         ("A", "B"): 0.4,
         ("a", "B"): 0.3,
@@ -180,7 +180,7 @@ def test_model_impute(phenotype, fill_proba, expected):
     return
 
 
-@pytest.mark.parametrize("proba_haplotypes,phenotypes,expected", [
+@pytest.mark.parametrize("proba_haplotypes,phenotypes,fill_probas,expected", [
     # All haplotypes present
     (
         {
@@ -195,6 +195,13 @@ def test_model_impute(phenotype, fill_proba, expected):
             ('Aa', 'bb'),
             ('Aa', 'BB'),
             ('aa', 'Bb'),
+        ],
+        [
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            np.NaN
         ],
         [
             {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6},
@@ -213,13 +220,23 @@ def test_model_impute(phenotype, fill_proba, expected):
         [
             ('aa', 'bb'),
             ('Aa', 'Bb'),
+            ('Aa', 'Bb'),
             ('AA', 'BB'),
             ('aa', 'bb'),
             ('AA', 'BB'),
         ],
         [
+            np.NaN,
+            np.NaN,
+            0,
+            np.NaN,
+            np.NaN,
+            np.NaN
+        ],
+        [
             {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('a', 'b')): np.NaN, (('A', 'b'), ('a', 'B')): np.NaN},
+            {(('A', 'B'), ('a', 'b')): 1.0, (('A', 'b'), ('a', 'B')): 0.0},
             {(('A', 'B'), ('A', 'B')): 1.0},
             {(('a', 'b'), ('a', 'b')): 1.0},
             {(('A', 'B'), ('A', 'B')): 1.0},
@@ -236,6 +253,10 @@ def test_model_impute(phenotype, fill_proba, expected):
         [
             ('aa', 'bb'),
             ("AA", "BB")
+        ],
+        [
+            np.NaN,
+            np.NaN
         ],
         [
             {(('a', 'b'), ('a', 'b')): 0},
@@ -258,6 +279,12 @@ def test_model_impute(phenotype, fill_proba, expected):
             ("a.", ".b")
         ],
         [
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            np.NaN
+        ],
+        [
             {(('A', 'B'), ('A', 'B')): 0.2, (('A', 'B'), ('a', 'B')): 0.8},
             {(('A', 'B'), ('A', 'B')): 0.2, (('A', 'B'), ('a', 'B')): 0.8},
             {
@@ -275,10 +302,70 @@ def test_model_impute(phenotype, fill_proba, expected):
         ]
     ),
 ])
-def test_proba_diplotypes(proba_haplotypes, phenotypes, expected):
+def test_proba_diplotypes(proba_haplotypes, phenotypes, fill_probas, expected):
     model = Model(proba_haplotypes)
-    proba_diplotypes = model.calculate_proba_diplotypes(phenotypes[0])
-    for (phenotype, e) in zip(phenotypes, expected):
-        proba_diplotypes = model.calculate_proba_diplotypes(phenotype)
+    for (phenotype, p, e) in zip(phenotypes, fill_probas, expected):
+        proba_diplotypes = model.calculate_proba_diplotypes(
+            phenotype, fill_proba=p
+        )
         assert_dicts_almost_equal(proba_diplotypes, e)
+    return
+
+
+@pytest.mark.parametrize("proba_haplotypes,phenotypes,fill_probas,expected", [
+    # Missing observations
+    (
+        {
+            ("A", "B"): 0.1,
+            ("a", "B"): 0.2,
+            ("A", "b"): 0.3,
+            ("a", "b"): 0.4
+        },
+        [
+            ('A.', 'BB'),
+            # Same but different order
+            (".A", "BB"),
+            ("..", "bb"),
+            ("a.", ".b"),
+            # Impossible to impute
+            ("a.", "xy"),
+            (".a", "xy")
+        ],
+        [
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            np.NaN,
+            0
+        ],
+        [
+            {("AA", "BB"): 0.2, ("Aa", "BB"): 0.8},
+            {("AA", "BB"): 0.2, ("Aa", "BB"): 0.8},
+            {
+                ("AA", "bb"): .3**2/(.3**2+2*.3*.4+.4**2),
+                ("Aa", "bb"): 2*.3*.4/(.3**2+2*.3*.4+.4**2),
+                ("aa", "bb"): .4**2/(.3**2+2*.3*.4+.4**2)
+            },
+            {
+                ("Aa", "Bb"): 0.2631578,
+                ("Aa", "bb"): 0.31578947,
+                ("aa", "Bb"): 0.21052631,
+                ("aa", "bb"): 0.21052631,
+            },
+            # Result is ordered alphabetically
+            {(".a", "xy"): np.NaN},
+            {(".a", "xy"): 0}
+        ]
+    ),
+])
+def test_proba_phenotypes(proba_haplotypes, phenotypes, fill_probas, expected):
+    # TODO: Test nothing to impute
+    # TODO: Test impossible to impute
+    model = Model(proba_haplotypes)
+    for (phenotype, p, e) in zip(phenotypes, fill_probas, expected):
+        proba_phenotypes = model.calculate_proba_phenotypes(
+            phenotype, fill_proba=p
+        )
+        assert_dicts_almost_equal(proba_phenotypes, e)
     return

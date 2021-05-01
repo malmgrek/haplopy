@@ -251,31 +251,28 @@ class Model():
 
         return to_dict(diplotypes)
 
-    def impute(self, phenotype: Tuple[str], **kwargs):
-        """Impute by selecting the most probable diplotype
+    def calculate_proba_phenotypes(self, phenotype, **kwargs):
+        """Compute probabilities of different options that fill a given phenotype
 
         """
         proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
 
-        def aggregate(acc, x):
-            (diplotype, proba) = x
+        def agg(cum, xs):
+            (diplotype, proba) = xs
             phenotype = datautils.unphase(diplotype)
+            # There can be multiple different diplotypes that result into the
+            # same phenotype
             return (
-                {**acc, **{phenotype: proba}} if phenotype not in acc
-                else {**acc, **{phenotype: proba + acc[phenotype]}}
+                {**cum, **{phenotype: proba}} if phenotype not in cum
+                else {**cum, **{phenotype: proba + cum[phenotype]}}
             )
 
-        # There can be multiple distinct diplotypes that result into the same
-        # phenotype so the probabilities must be summed
+        return reduce(agg, proba_diplotypes.items(), dict())
 
-        # FIXME: This is not the correct way to find argmax of dict
-        proba_phenotypes = reduce(aggregate, proba_diplotypes.items(), dict())
-        most_probable = max(proba_phenotypes, key=proba_phenotypes.get)
-        return (
-            most_probable
-            # FIXME: What if there is just one truly different option
-            #        than phenotype
-            # FIXME: All options are NaN probability
-            if proba_phenotypes[most_probable] > proba_phenotypes[least_probable]
-            else phenotype
-        )
+    def impute(self, phenotype: Tuple[str], **kwargs):
+        """Impute by selecting the most probable diplotype
+
+        """
+        proba_phenotypes = self.calculate_proba_phenotypes(phenotype)
+        (argmax, m) = datautils.dmax(proba_phenotypes)
+        return argmax if argmax else phenotype

@@ -292,3 +292,12 @@ def test_factorize_fill(phenotype, haplotypes, expected):
     res = datautils.factorize_fill(phenotype, haplotypes)
     assert res == expected
     return
+
+
+@pytest.mark.parametrize("x,expected", [
+    ({"a": 2, "b": 42, "c": np.NaN}, ("b", 42)),
+    ({"a": np.NaN}, (None, None))
+])
+def test_dmax(x, expected):
+    assert datautils.dmax(x) == expected
+    return
