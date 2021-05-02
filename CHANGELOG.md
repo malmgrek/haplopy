@@ -1,7 +1,7 @@
 # Change Log
 
 
-## 0.0.1
+## 0.1.0
 
 ### Add
 - Multinomial model ML fitting using EM
