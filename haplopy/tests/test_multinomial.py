@@ -44,6 +44,16 @@ def test_log_multinomial(args, expected):
     (
         {
             "phenotypes": [
+                ("aa", "bb")
+            ]
+        },
+        {
+            ("a", "b"): 1.0
+        }
+    ),
+    (
+        {
+            "phenotypes": [
                 ("Aa", "Bb")
             ]
         },
@@ -84,7 +94,6 @@ def test_log_multinomial(args, expected):
     )
 ])
 def test_expectation_maximization(kwargs, expected):
-    # TODO: Add a trivial case where there is just one possible parent haplotype
     (res, _) = expectation_maximization(**kwargs)
     assert res == expected
     return
@@ -360,8 +369,6 @@ def test_proba_diplotypes(proba_haplotypes, phenotypes, fill_probas, expected):
     ),
 ])
 def test_proba_phenotypes(proba_haplotypes, phenotypes, fill_probas, expected):
-    # TODO: Test nothing to impute
-    # TODO: Test impossible to impute
     model = Model(proba_haplotypes)
     for (phenotype, p, e) in zip(phenotypes, fill_probas, expected):
         proba_phenotypes = model.calculate_proba_phenotypes(
