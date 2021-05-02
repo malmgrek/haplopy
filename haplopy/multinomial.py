@@ -1,7 +1,6 @@
 """Multinomial distribution haplotype frequency inference model
 
 TODO: Random generate EM initial values
-TODO: Log-likelihood method
 
 """
 
