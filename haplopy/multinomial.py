@@ -147,16 +147,17 @@ def expectation_maximization(
 class Model():
     """Haplotype multinomial distribution estimator
 
-    Example
-    -------
+    Examples
+    --------
+    >>> model = Model({("a", "b"): 0.5, ("A", "B"): 0.5})
+    >>> phenotypes = model.random(10)
+    >>> model_fitted = Model.fit(phenotypes)
+    >>> model_fitted.proba_haplotypes
+    {('A', 'B'): 0.6,
+     ('A', 'b'): 0.0,
+     ('a', 'B'): 0.0,
+     ('a', 'b'): 0.4}
 
-    .. code-block:: python
-
-        import haplopy as hp
-
-        model = hp.multinomial.Model({("a", "b"): 0.5, ("A", "B"): 0.5})
-        phenotypes = model.random(10)
-        model_est = hp.multinomial.Model.fit(phenotypes)
 
     """
 
@@ -200,6 +201,12 @@ class Model():
     ) -> Dict[Tuple[int], float]:
         """Calculate admissible diplotypes' conditional probabilities
 
+        Examples
+        --------
+        >>> model = Model({("a", "b"): 0.2, ("A", "B"): 0.5, ("a", "B"): 0.3})
+        >>> model.calculate_proba_diplotypes(("Aa", "B."))
+        {(('A', 'B'), ('a', 'B')): 0.6, (('A', 'B'), ('a', 'b')): 0.4}
+
         """
 
         # Extended diplotypes where missing data is filled if possible
@@ -240,6 +247,12 @@ class Model():
     def calculate_proba_phenotypes(self, phenotype: Tuple[str], **kwargs):
         """Compute probabilities of different options that fill a given phenotype
 
+        Examples
+        --------
+        >>> model = Model({("a", "b"): 0.2, ("A", "B"): 0.5, ("a", "B"): 0.3})
+        >>> model.calculate_proba_phenotypes(("Aa", ".."))
+        {("Aa", "BB"): 0.6, ("Aa", "Bb": 0.4)
+
         """
         proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
 
@@ -257,6 +270,11 @@ class Model():
 
     def impute(self, phenotype: Tuple[str], **kwargs):
         """Impute by selecting the most probable diplotype
+
+        Examples
+        --------
+        >>> model = Model({("a", "b"): 0.2, ("A", "B"): 0.5, ("a", "B"): 0.3})
+        >>> model.impute(("Aa", "BB"))
 
         """
         proba_phenotypes = self.calculate_proba_phenotypes(phenotype)

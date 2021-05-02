@@ -100,10 +100,52 @@ fig = hp.plot.plot_haplotypes(
 
 ![Estimated relative haplotype frequencies](./doc/images/hinton-estimated.png "Estimated")
 
-### Haplotype phasing
+### Phenotype phasing
 
-TODO
+Use an existing model to calculate the probabilities (conditional to given the
+phenotype) of different diplotype representations of a given phenotype.
 
-### Imputing missing observations
+``` python
+import haplopy as hp
 
-TODO
+
+model = hp.multinomial.Model({
+    ("A", "B"): 0.4,
+    ("A", "b"): 0.3,
+    ("a", "B"): 0.2,
+    ("a", "b"): 0.1
+})
+
+# A complete phenotype observation
+model.calculate_proba_diplotypes(("Aa", "Bb"))
+# {(('A', 'B'), ('a', 'b')): 0.4, (('A', 'b'), ('a', 'B')): 0.6}
+
+# A phenotype with some missing SNPs
+model.calculate_proba_diplotypes(("A.", ".."))
+# {(('A', 'B'), ('A', 'B')): 0.17582417582417584,
+#  (('A', 'B'), ('A', 'b')): 0.2637362637362637,
+#  (('A', 'B'), ('a', 'B')): 0.17582417582417584,
+#  (('A', 'B'), ('a', 'b')): 0.08791208791208792,
+#  (('A', 'b'), ('A', 'b')): 0.09890109890109888,
+#  (('A', 'b'), ('a', 'B')): 0.13186813186813184,
+#  (('A', 'b'), ('a', 'b')): 0.06593406593406592}
+
+```
+
+In particular, phenotype phasing also enables computing the probabilities of 
+different admissible phenotypes as well as imputation of missing data:
+
+``` python
+model.calculate_proba_phenotypes(("A.", ".."))
+# {('AA', 'BB'): 0.17582417582417584,
+#  ('AA', 'Bb'): 0.2637362637362637,
+#  ('Aa', 'BB'): 0.17582417582417584,
+#  ('Aa', 'Bb'): 0.21978021978021978,
+#  ('AA', 'bb'): 0.09890109890109888,
+#  ('Aa', 'bb'): 0.06593406593406592}
+
+# Imputes with the most probable one
+model.impute(("A.", ".."))
+# ("AA", "Bb")
+```
+

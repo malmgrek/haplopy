@@ -4,16 +4,16 @@ Terminology
 -----------
 
 haplotype : A sequence of nucleotides.
-            For example ("a", "b").
+            Example: ("a", "b")
 
 diplotype : A pair of haplotypes.
-            For example (("a", "b"), ("A", "B")).
+            Example: (("a", "b"), ("A", "B"))
 
 phenotype : A sequence of nucleotide pairs with unspecified diplotype.
-            For example ("Aa", "Bb").
+            Example: ("Aa", "Bb")
 
 genotype  : An item in the phenotype.
-            For example "Aa".
+            Example: "Aa"
 
 """
 
@@ -44,6 +44,11 @@ def dmax(x: dict):
     ordered by construction. Thus, in case of multiple keys of same numeric
     value, the result only depends on inputs initial order.
 
+    Examples
+    --------
+    >>> dmax({"a": 1, "b": np.NaN, "c": 4})
+    ("c", 4)
+
     """
     return max(
         filter(
@@ -63,9 +68,8 @@ def dmax(x: dict):
 def match(haplotype, haplotypes) -> List[Tuple[str]]:
     """Find haplotypes that match a given haplotype
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> match(("a", "."), [("a", "b"), ("a", "B"), ("A", "B")])
     [("a", "b"), ("a", "B")]
 
@@ -105,9 +109,8 @@ def match(haplotype, haplotypes) -> List[Tuple[str]]:
 def unphase(diplotype) -> Tuple[str]:
     """The most basic operation diplotype to phenotype mapping
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> unphase((("A", "T", "G"), ("A", "A", "C")))
     ("AA", "AT", "GC")
 
@@ -123,9 +126,8 @@ def fill(diplotype, haplotypes) -> List[Tuple[Tuple[str]]]:
 
     Leaves unmatchable patterns as they are.
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> fill(
     ...     (("A", "."), ("a", "b")),
     ...     [("A", "B"), ("A", "b"), ("a", "B"), ("a", "b")]
@@ -161,9 +163,8 @@ def count_distinct(phenotypes):
     Importantly, standardizes a dataset regarding differently ordered genotype
     strings within a phenotype.
 
-    Example
-    -------
-
+    Examples
+    --------
     >>> count_distinct([("aA", "bB"), ("Aa", "Bb")])
     Counter({('Aa', 'Bb'): 2})
 
@@ -181,6 +182,11 @@ def count_distinct(phenotypes):
 def factorize(phenotype) -> List[Tuple[str]]:
     """List admissible diplotypes
 
+    Examples
+    --------
+    >>> factorize(("Aa", "BB", "Cc"))
+    [(('A', 'B', 'C'), ('a', 'B', 'c')), (('A', 'B', 'c'), ('a', 'B', 'C'))]
+
     """
     factors = list(itertools.product(*[
         # NOTE: Without sorting the function wouldn't be pure: set of string
@@ -195,7 +201,19 @@ def factorize(phenotype) -> List[Tuple[str]]:
 
 
 def factorize_fill(phenotype, haplotypes) -> List[Tuple[Tuple[str]]]:
-    """Factorize with missing value filling
+    """Factorize to diplotypes with missing value filling
+
+    Examples
+    --------
+    >>> factorize_fill(
+    ...     ("Aa", "B."),
+    ...     [("a", "b"), ("A", "b"), ("a", "B"), ("A", "B")]
+    ... )
+    [
+        (('A', 'B'), ('a', 'B')),
+        (('A', 'B'), ('a', 'b')),
+        (('A', 'b'), ('a', 'B'))
+    ]
 
     """
     # NOTE: Without sorting the function wouldn't be pure: set of string
@@ -214,6 +232,15 @@ def factorize_fill(phenotype, haplotypes) -> List[Tuple[Tuple[str]]]:
 
 def find_admissible_haplotypes(counter) -> List[Tuple[str]]:
     """List parent haplotypes
+
+    Examples
+    --------
+    >>> from collections import Counter
+    >>> find_admissible_diplotypes(Counter({
+    ...     ("AA", "BB"): 2,
+    ...     ("aa", "bb"): 1
+    ... }))
+    [("A", "B"), ("a", "b")]
 
     """
     # Sort the reduced set to fix output ordering.
@@ -247,6 +274,14 @@ def build_diplotype_representation(counter, haplotypes) -> List[List[Tuple[int]]
         in `parent_haplotypes`, and the pair stands for an admissible parent
         haplotype couple.
 
+    Examples
+    --------
+    >>> from collections import Counter
+    >>> counter = Counter({("Aa", "Bb"): 2, ("aa", "bb"): 1})
+    >>> haplotypes = [('a', 'b'), ('A', 'B'), ('a', 'B'), ('A', 'b')]
+    >>> build_diplotype_representation(counter, haplotypes)
+    [[(1, 0), (3, 2)], [(0, 0)]]
+
     """
 
     def factorize_to_index(phenotype):
@@ -264,7 +299,20 @@ def build_diplotype_matrix(
 ):
     """Haplotype multiplicity in a 'N haplotypes' * 'M diplotypes' matrix
 
-    Points out how many times haplotype n is present in diplotype m
+    Indicates out how many times haplotype n is present in diplotype m
+
+    Examples
+    --------
+    >>> from collections import Counter
+    >>> counter = Counter({("Aa", "Bb"): 2, ("aa", "bb"): 1})
+    >>> haplotypes = [('a', 'b'), ('A', 'B'), ('a', 'B'), ('A', 'b')]
+    >>> drepr = build_diplotype_representation(counter, haplotypes)
+    >>> build_diplotype_matrix(drepr, haplotypes).toarray()
+    array([[1, 0, 2],
+           [1, 0, 0],
+           [0, 1, 0],
+           [0, 1, 0]])
+
 
     """
 
