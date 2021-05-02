@@ -2,7 +2,6 @@
 
 TODO: Random generate EM initial values
 TODO: Log-likelihood method
-TODO: Save and load method for model
 
 """
 
@@ -10,6 +9,7 @@ TODO: Save and load method for model
 from __future__ import annotations
 
 from functools import reduce
+import json
 import logging
 from typing import Dict, List, Tuple
 
@@ -252,7 +252,6 @@ class Model():
         >>> model = Model({("a", "b"): 0.2, ("A", "B"): 0.5, ("a", "B"): 0.3})
         >>> model.calculate_proba_phenotypes(("Aa", ".."))
         {("Aa", "BB"): 0.6, ("Aa", "Bb": 0.4)
-
         """
         proba_diplotypes = self.calculate_proba_diplotypes(phenotype, **kwargs)
 
@@ -280,3 +279,30 @@ class Model():
         proba_phenotypes = self.calculate_proba_phenotypes(phenotype)
         (argmax, m) = datautils.dmax(proba_phenotypes)
         return argmax if argmax else phenotype
+
+    def to_json(self, fp):
+        """Save existing model to hard disk
+
+        """
+
+        def jsonify(x):
+            return {"".join(k): v for (k, v) in x.items()}
+
+        with open(fp, "w+") as f:
+            json.dump(jsonify(self.proba_haplotypes), f)
+
+        return
+
+    @classmethod
+    def from_json(cls, fp):
+        """Instantiate a new model from a JSON on disk
+
+        """
+
+        def unjsonify(x):
+            return {tuple(k): v for (k, v) in x.items()}
+
+        with open(fp, "r") as f:
+            raw = json.load(f)
+
+        return cls(proba_haplotypes=unjsonify(raw))

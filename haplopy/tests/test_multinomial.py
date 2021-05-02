@@ -369,3 +369,19 @@ def test_proba_phenotypes(proba_haplotypes, phenotypes, fill_probas, expected):
         )
         assert_dicts_almost_equal(proba_phenotypes, e)
     return
+
+
+def test_model_serialize(tmp_path):
+    d = tmp_path / "tmp"
+    d.mkdir()
+    p = d / "foobar.json"
+    fp = str(p)
+    model = Model({
+        ("A", "B"): 0.4,
+        ("A", "b"): 0.3,
+        ("a", "B"): 0.2,
+        ("a", "b"): 0.1
+    })
+    model.to_json(fp)
+    assert model.proba_haplotypes == Model.from_json(fp).proba_haplotypes
+    return
