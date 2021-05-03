@@ -18,7 +18,7 @@ sequence) pair behind the phenotype. Possible parent haplotype pairs that could
 result into the above phenotype are given by
 
 ``` text
-(ABC, abc), (aBC, Abc), (AbC, aBc), (abC, ABc)
+(ABC, abc), (aBC, Abc), (AbC, aBc), (abC, ABc), ...
 ```
 
 In other words, the mapping that maps a haplotype pair to a phenotype is defined
