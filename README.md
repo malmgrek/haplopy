@@ -48,15 +48,16 @@ pip install haplopy
 
 Alternatively, install development version manually using Conda
 
-``` shell
+``` bash
 git clone https://github.com/malmgrek/haplopy.git
-# TODO: Pip install requirements and package
+pip install -r requirements
+pip install -e .
 ```
 
 To check if the development version installed correctly, run tests with
 
 ``` shell
-pytest -v /path/to/haplopy
+pytest -v 
 ```
 
 ## Examples
