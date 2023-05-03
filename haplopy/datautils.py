@@ -77,7 +77,7 @@ def match(haplotype, haplotypes) -> List[Tuple[str]]:
 
 
     def validate(s: str):
-        valid = bool(re.compile("[a-zA-Z0-9\.]{2}").match(s))
+        valid = bool(re.compile(r"[a-zA-Z0-9\.]{2}").match(s))
         if not valid:
             raise ValueError(
                 (
