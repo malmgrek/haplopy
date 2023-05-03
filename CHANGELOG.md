@@ -1,6 +1,12 @@
 # Change Log
 
 
+## 0.1.1
+
+### Update
+- Packaging to latest Setuptools style
+
+
 ## 0.1.0
 
 ### Add
