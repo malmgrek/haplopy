@@ -6,10 +6,7 @@ from collections import Counter
 from typing import Dict, List, Tuple
 
 import numpy as np
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    pass
+import matplotlib.pyplot as plt
 
 
 def plot_haplotypes(
