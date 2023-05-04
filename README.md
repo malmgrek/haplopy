@@ -46,7 +46,7 @@ The package is found in PyPi.
 pip install haplopy
 ```
 
-Alternatively, install development version manually using Conda
+Alternatively, install development version manually using Pip:
 
 ``` bash
 git clone https://github.com/malmgrek/haplopy.git
